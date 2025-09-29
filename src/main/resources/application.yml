@@ -1,0 +1,40 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: pillmate
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/pillmate_db?allowPublicKeyRetrieval=true&sslMode=DISABLED&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: 0506
+
+    hikari:
+      max-lifetime: 400000
+      idle-timeout: 600000
+      connection-timeout: 30000
+      maximum-pool-size: 5
+
+  jpa:
+    hibernate:
+      ddl-auto: update # 초기 개발은 create/update 중 택1
+    database-platform: org.hibernate.dialect.MySQL8Dialect
+    properties:
+      hibernate.format_sql: true
+
+# 로깅 레벨 설정: SQL을 더 자세히 보고 싶을 때 사용
+logging:
+  level:
+    org.hibernate.SQL: debug # 실행되는 SQL 쿼리를 보여줌 (show-sql: true와 유사)
+    org.hibernate.type: trace # SQL에 바인딩되는 파라미터 값을 보여줌 (매우 유용!)
+    org.springframework.jdbc: debug
+
+# Swagger(OpenAPI) 설정
+springdoc:
+  swagger-ui:
+    path: /swagger.html
+    try-it-out-enabled: true
+  api-docs:
+    path: /api-docs
