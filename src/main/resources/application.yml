@@ -6,10 +6,10 @@ spring:
     name: pillmate
 
   datasource:
-    url: jdbc:mysql://localhost:3306/pillmate_db?allowPublicKeyRetrieval=true&sslMode=DISABLED&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    url: jdbc:mysql://localhost:3306/pillmate_db?allowPublicKeyRetrieval=true&sslMode=DISABLED&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true&useUnicode=true
     driver-class-name: com.mysql.cj.jdbc.Driver
-    username: root
-    password: 0506
+    username: pillmate_user
+    password: pillmate123
 
     hikari:
       max-lifetime: 400000

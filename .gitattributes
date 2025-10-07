@@ -1,0 +1,157 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Java source files
+*.java text diff=java
+*.kt text diff=java
+*.groovy text diff=java
+
+# Gradle files
+*.gradle text
+gradlew text
+gradlew.bat text
+
+# Properties files
+*.properties text
+*.yml text
+*.yaml text
+
+# XML files
+*.xml text
+*.xsd text
+*.xslt text
+
+# JSON files
+*.json text
+
+# Markdown files
+*.md text
+
+# Documentation files
+*.txt text
+*.adoc text
+*.asciidoc text
+
+# Configuration files
+*.conf text
+*.config text
+*.ini text
+
+# Script files
+*.sh text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# SQL files
+*.sql text
+
+# CSS files
+*.css text
+
+# JavaScript files
+*.js text
+*.jsx text
+
+# TypeScript files
+*.ts text
+*.tsx text
+
+# HTML files
+*.html text
+*.htm text
+
+# Template files
+*.ftl text
+*.vm text
+*.jsp text
+
+# Log files
+*.log text
+
+# Git files
+.gitignore text
+.gitattributes text
+
+# Docker files
+Dockerfile text
+*.dockerfile text
+docker-compose*.yml text
+
+# CI/CD files
+*.yml text
+*.yaml text
+.github/** text
+
+# Binary files
+*.jar binary
+*.war binary
+*.ear binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.7z binary
+*.rar binary
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.a binary
+*.o binary
+*.class binary
+
+# Image files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.bmp binary
+*.tiff binary
+*.ico binary
+*.svg text
+
+# Font files
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.eot binary
+
+# Archive files
+*.7z binary
+*.dmg binary
+*.iso binary
+*.tar binary
+*.zip binary
+
+# Database files
+*.db binary
+*.sqlite binary
+*.sqlite3 binary
+
+# IDE specific files
+*.iml text
+*.ipr text
+*.iws text
+.project text
+.classpath text
+
+# OS specific files
+.DS_Store binary
+Thumbs.db binary
+desktop.ini binary
+
+# Line ending normalization
+*.java text eol=lf
+*.kt text eol=lf
+*.groovy text eol=lf
+*.gradle text eol=lf
+*.properties text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.xml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
