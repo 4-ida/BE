@@ -33,7 +33,16 @@ public class User {
     
     @Column(nullable = false, length = 255)
     private String password;
-    
+    @Column(length = 255)
+    private String profileImage;
+
+    @Column(length = 20)
+    private String caffeineSensitivity;
+
+    @Column(length = 20)
+    private String drinkingPattern;
+
+
     // 비밀번호 암호화 메서드
     public void encodePassword(String rawPassword) {
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
@@ -44,5 +53,11 @@ public class User {
     public boolean checkPassword(String rawPassword) {
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
         return encoder.matches(rawPassword, this.password);
+    }
+    public void updateProfile(String name, String profileImage, String caffeineSensitivity, String drinkingPattern) {
+        if (name != null) this.name = name;
+        if (profileImage != null) this.profileImage = profileImage;
+        if (caffeineSensitivity != null) this.caffeineSensitivity = caffeineSensitivity;
+        if (drinkingPattern != null) this.drinkingPattern = drinkingPattern;
     }
 }
