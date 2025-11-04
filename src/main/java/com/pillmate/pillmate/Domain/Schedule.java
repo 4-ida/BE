@@ -1,0 +1,73 @@
+package com.pillmate.pillmate.Domain;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Table(name = "schedules")
+@Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@EntityListeners(AuditingEntityListener.class)
+public class Schedule {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long scheduleId;
+    
+    @Column(nullable = false)
+    private Long drugId;  // 약품 ID
+    
+    @Column(nullable = false, length = 100)
+    private String dose;  // 복용량 또는 용법
+    
+    @Column(nullable = false)
+    private LocalDateTime alarmAt;  // 알림 시각
+    
+    @Column(columnDefinition = "TEXT")
+    private String memo;  // 사용자 메모
+    
+    @Column(nullable = false)
+    private Boolean alarmEnabled;  // 알림 사용 여부
+    
+    @Column(length = 500)
+    private String repeatRule;  // 반복 규칙 (RFC5545 형식)
+    
+    @Column(nullable = false)
+    private LocalDate startDate;  // 복용 시작일
+    
+    @Column(nullable = false)
+    private LocalDate endDate;  // 복용 종료일
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ScheduleStatus status;  // 일정 상태
+    
+    @CreatedDate
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+    
+    @LastModifiedDate
+    @Column(nullable = false)
+    private LocalDateTime updatedAt;
+}
+
