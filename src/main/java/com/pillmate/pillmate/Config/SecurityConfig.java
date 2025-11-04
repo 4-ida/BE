@@ -18,7 +18,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // JWT 사용으로 세션 비활성화
             .authorizeHttpRequests(authz -> authz
                 .requestMatchers("/api/auth/**").permitAll() // 인증 API 허용 (기존 경로)
-                .requestMatchers("/api/v1/signup", "/api/v1/login").permitAll() // 회원가입, 로그인 API 허용
+                .requestMatchers("/api/v1/signup", "/api/v1/auth/login").permitAll() // 회원가입, 로그인 API 허용
                 .requestMatchers("/api/dose-events/**").permitAll() // DoseEvent API 허용 (개발용)
                 .requestMatchers("/swagger.html", "/swagger-ui/**", "/api-docs/**").permitAll() // Swagger 허용
                 .requestMatchers("/h2-console/**").permitAll() // H2 콘솔 허용 (개발용)
