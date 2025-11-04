@@ -4,6 +4,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.pillmate.pillmate.DTO.SignUpRequest;
+import com.pillmate.pillmate.DTO.BasicProfileResponse;
+import com.pillmate.pillmate.DTO.BasicProfileUpdateRequest;
+import com.pillmate.pillmate.DTO.UserProfileResponse;
+import com.pillmate.pillmate.DTO.UserProfileUpdateRequest;
 import com.pillmate.pillmate.Domain.User;
 import com.pillmate.pillmate.Repository.UserRepository;
 import com.pillmate.pillmate.Util.PasswordValidator;
@@ -85,5 +89,50 @@ public class UserService {
     public User findByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
+    }
+    public BasicProfileResponse getBasicProfile(Long userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
+        return BasicProfileResponse.from(user);
+    }
+    // 프로필 조회
+    public UserProfileResponse getProfile(Long userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
+        return UserProfileResponse.from(user);
+    }
+
+    // 프로필 수정
+    @Transactional
+    public UserProfileResponse updateProfile(Long userId, UserProfileUpdateRequest req) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
+
+        user.updateProfile(
+            req.getName(),
+            req.getProfileImage(),
+            req.getCaffeineSensitivity(),
+            req.getDrinkingPattern()
+        );
+
+        userRepository.save(user);
+        return UserProfileResponse.from(user);
+    }
+
+    //기본 프로필(섭취 설정) 수정
+    @Transactional
+    public BasicProfileResponse updateBasicProfile(Long userId, BasicProfileUpdateRequest req) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
+
+        // User 엔티티에 우리가 추가한 메서드
+        user.updateBasicProfile(
+            req.getDefaultCaffeineAmount(),
+            req.getDefaultAlcoholAmount(),
+            req.getCurrentMedications(),
+            req.getPreferredBeverageType()
+        );
+
+        return BasicProfileResponse.from(user);
     }
 }
