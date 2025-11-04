@@ -46,7 +46,7 @@ public class Schedule {
     @Column(columnDefinition = "TEXT")
     private String memo;  // 사용자 메모
     
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
     private Boolean alarmEnabled;  // 알림 사용 여부
     
     @Column(length = 500)
@@ -59,7 +59,7 @@ public class Schedule {
     private LocalDate endDate;  // 복용 종료일
     
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "VARCHAR(20) DEFAULT 'SCHEDULED'")
     private ScheduleStatus status;  // 일정 상태
     
     @CreatedDate
