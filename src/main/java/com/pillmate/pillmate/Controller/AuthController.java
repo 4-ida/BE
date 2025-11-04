@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.pillmate.pillmate.Config.JwtUtil;
 import com.pillmate.pillmate.DTO.ConsentDto;
 import com.pillmate.pillmate.DTO.LoginRequest;
+import com.pillmate.pillmate.DTO.LoginResponse;
 import com.pillmate.pillmate.DTO.SignUpRequest;
 import com.pillmate.pillmate.DTO.SignUpResponse;
 import com.pillmate.pillmate.Domain.User;
@@ -90,31 +91,35 @@ public class AuthController {
         @ApiResponse(responseCode = "200", description = "로그인 성공"),
         @ApiResponse(responseCode = "401", description = "인증 실패 (잘못된 이메일 또는 비밀번호)")
     })
-    @PostMapping("/login")
-    public ResponseEntity<Map<String, Object>> login(@Valid @RequestBody LoginRequest request) {
-        Map<String, Object> response = new HashMap<>();
-        
+    @PostMapping("/auth/login")
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
         try {
             User user = userService.login(request.getEmail(), request.getPassword());
             
             // JWT 토큰 생성
-            String token = jwtUtil.generateToken(user.getEmail());
+            String accessToken = jwtUtil.generateToken(user.getEmail());
             
-            response.put("success", true);
-            response.put("message", "로그인 성공");
-            response.put("token", token);
-            response.put("user", Map.of(
-                "id", user.getId(),
-                "name", user.getName(),
-                "email", user.getEmail()
-            ));
+            // 사용자 정보
+            LoginResponse.UserInfo userInfo = LoginResponse.UserInfo.builder()
+                    .email(user.getEmail())
+                    .name(user.getName())
+                    .build();
+            
+            // Response 생성
+            LoginResponse response = LoginResponse.builder()
+                    .message("로그인 성공")
+                    .accessToken(accessToken)
+                    .tokenType("Bearer")
+                    .expiresInMillis(jwtUtil.getExpirationTimeMillis())
+                    .user(userInfo)
+                    .build();
             
             return ResponseEntity.ok(response);
             
         } catch (IllegalArgumentException e) {
-            response.put("success", false);
-            response.put("message", e.getMessage());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
         }
     }
 }

@@ -55,4 +55,9 @@ public class JwtUtil {
             return false;
         }
     }
+    
+    // 토큰 만료 시간 반환 (밀리초)
+    public long getExpirationTimeMillis() {
+        return EXPIRATION_TIME;
+    }
 }
