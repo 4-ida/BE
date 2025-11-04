@@ -11,8 +11,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.pillmate.pillmate.Config.JwtUtil;
+import com.pillmate.pillmate.DTO.ConsentDto;
 import com.pillmate.pillmate.DTO.LoginRequest;
 import com.pillmate.pillmate.DTO.SignUpRequest;
+import com.pillmate.pillmate.DTO.SignUpResponse;
 import com.pillmate.pillmate.Domain.User;
 import com.pillmate.pillmate.Service.UserService;
 
@@ -24,7 +26,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/v1")
 @RequiredArgsConstructor
 @Tag(name = "Auth", description = "사용자 인증 관련 API")
 public class AuthController {
@@ -38,26 +40,48 @@ public class AuthController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청 (이메일 중복, 비밀번호 불일치 등)")
     })
     @PostMapping("/signup")
-    public ResponseEntity<Map<String, Object>> signUp(@Valid @RequestBody SignUpRequest request) {
-        Map<String, Object> response = new HashMap<>();
-        
+    public ResponseEntity<?> signUp(@Valid @RequestBody SignUpRequest request) {
         try {
             User user = userService.signUp(request);
             
-            response.put("success", true);
-            response.put("message", "회원가입이 완료되었습니다");
-            response.put("user", Map.of(
-                "id", user.getId(),
-                "name", user.getName(),
-                "email", user.getEmail()
-            ));
+            // JWT 토큰 생성
+            String token = jwtUtil.generateToken(user.getEmail());
+            
+            // 약관 동의 정보
+            ConsentDto consent = ConsentDto.builder()
+                    .termsOfService(user.getTermsOfService())
+                    .privacyPolicy(user.getPrivacyPolicy())
+                    .dataUsage(user.getDataUsage())
+                    .build();
+            
+            // 사용자 정보
+            SignUpResponse.UserInfo userInfo = SignUpResponse.UserInfo.builder()
+                    .id(user.getId())
+                    .email(user.getEmail())
+                    .name(user.getName())
+                    .build();
+            
+            // Response 데이터 구성
+            SignUpResponse.SignUpData data = SignUpResponse.SignUpData.builder()
+                    .user(userInfo)
+                    .consent(consent)
+                    .token(token)
+                    .createdAt(user.getCreatedAt())
+                    .updatedAt(user.getUpdatedAt())
+                    .build();
+            
+            // Response 생성
+            SignUpResponse response = SignUpResponse.builder()
+                    .message("회원가입 성공")
+                    .data(data)
+                    .build();
             
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
             
         } catch (IllegalArgumentException e) {
-            response.put("success", false);
-            response.put("message", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         }
     }
     
