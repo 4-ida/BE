@@ -8,6 +8,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -74,6 +76,13 @@ public class User {
     @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
     private Boolean dataUsage;  // 데이터 활용 동의 여부
     
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, columnDefinition = "VARCHAR(20) DEFAULT 'LOCAL'")
+    private AuthProvider provider;  // 인증 제공자 (LOCAL, GOOGLE, KAKAO, NAVER, APPLE)
+    
+    @Column(nullable = false, length = 100, columnDefinition = "VARCHAR(100) DEFAULT 'LOCAL'")
+    private String providerId;  // 제공자별 고유 ID
+    
     @CreatedDate
     @Column(nullable = false, updatable = false, columnDefinition = "DATETIME DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
@@ -104,5 +113,19 @@ public class User {
         if (alcohol != null) this.defaultAlcoholAmount = alcohol;
         if (meds != null) this.currentMedications = meds;
         if (beverage != null) this.preferredBeverageType = beverage;
+    }
+    
+    // 소셜 로그인 사용자 생성 메서드
+    public static User createSocialUser(String email, String name, AuthProvider provider, String providerId) {
+        User user = new User();
+        user.email = email;
+        user.password = "oauth2"; // 소셜 로그인은 비밀번호 불필요
+        user.name = name;
+        user.provider = provider;
+        user.providerId = providerId;
+        user.termsOfService = true;  // 소셜 로그인 시 약관 동의로 간주
+        user.privacyPolicy = true;
+        user.dataUsage = false;  // 선택 약관은 false
+        return user;
     }
 }
