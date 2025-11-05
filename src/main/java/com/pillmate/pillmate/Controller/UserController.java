@@ -2,8 +2,6 @@ package com.pillmate.pillmate.Controller;
 
 import com.pillmate.pillmate.DTO.UserProfileResponse;
 import com.pillmate.pillmate.DTO.UserProfileUpdateRequest;
-import com.pillmate.pillmate.DTO.BasicProfileResponse;
-import com.pillmate.pillmate.DTO.BasicProfileUpdateRequest;
 import com.pillmate.pillmate.Service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -42,21 +40,5 @@ public class UserController {
 		@RequestBody UserProfileUpdateRequest request
 	) {
 		return userService.updateProfile(userId, request);
-	}
-
-	@Operation(summary = "기본 프로필 조회", description = "섭취 페이지에서 사용하는 기본 프로필 정보를 조회합니다.")
-	@GetMapping("/basic-profile/{userId}")
-	public BasicProfileResponse getBasicProfile(@PathVariable Long userId) {
-		return userService.getBasicProfile(userId);
-	}
-
-
-	@Operation(summary = "기본 프로필 수정", description = "섭취 페이지에서 사용하는 기본 프로필 정보를 수정합니다.")
-	@PutMapping("/basic-profile/{userId}")
-	public BasicProfileResponse updateBasicProfile(
-		@PathVariable Long userId,
-		@RequestBody BasicProfileUpdateRequest request
-	) {
-		return userService.updateBasicProfile(userId, request);
 	}
 }
