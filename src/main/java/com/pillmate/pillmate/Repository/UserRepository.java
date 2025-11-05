@@ -15,4 +15,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     
     // 이메일 중복 체크
     boolean existsByEmail(String email);
+    
+    // provider와 providerId로 사용자 찾기
+    Optional<User> findByProviderAndProviderId(com.pillmate.pillmate.Domain.AuthProvider provider, String providerId);
 }

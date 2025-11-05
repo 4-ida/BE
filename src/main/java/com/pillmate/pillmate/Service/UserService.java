@@ -8,6 +8,7 @@ import com.pillmate.pillmate.DTO.BasicProfileResponse;
 import com.pillmate.pillmate.DTO.BasicProfileUpdateRequest;
 import com.pillmate.pillmate.DTO.UserProfileResponse;
 import com.pillmate.pillmate.DTO.UserProfileUpdateRequest;
+import com.pillmate.pillmate.Domain.AuthProvider;
 import com.pillmate.pillmate.Domain.User;
 import com.pillmate.pillmate.Repository.UserRepository;
 import com.pillmate.pillmate.Util.PasswordValidator;
@@ -64,6 +65,8 @@ public class UserService {
                 .termsOfService(request.getConsent().getTermsOfService())
                 .privacyPolicy(request.getConsent().getPrivacyPolicy())
                 .dataUsage(dataUsage)
+                .provider(AuthProvider.LOCAL)  // 일반 회원가입
+                .providerId("LOCAL")  // 일반 회원가입 구분용
                 .build();
         
         // 비밀번호 암호화
