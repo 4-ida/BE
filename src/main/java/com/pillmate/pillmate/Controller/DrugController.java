@@ -2,6 +2,8 @@ package com.pillmate.pillmate.Controller;
 
 import com.pillmate.pillmate.DTO.SuggestResponse;
 import com.pillmate.pillmate.DTO.SearchResponse;
+import com.pillmate.pillmate.DTO.ImageResponse;
+import com.pillmate.pillmate.DTO.DrugInfoResponse;
 import com.pillmate.pillmate.Service.DrugService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -14,7 +16,8 @@ public class DrugController {
 
     private final DrugService drugService;
 
-    //  GET /api/v1/drug/suggest?q=타이&limit=10
+    // ---- 약 명 자동완성 ----
+    // GET /api/v1/drug/suggest?q=타이&limit=10
     @GetMapping("/suggest")
     public ResponseEntity<SuggestResponse> suggest(
             @RequestParam("q") String q,
@@ -23,7 +26,8 @@ public class DrugController {
         return ResponseEntity.ok(drugService.suggest(q, limit));
     }
 
-    //  GET /api/v1/drug/search?q=타이레놀&page=0&size=20
+    // ---- 약 명 검색 ----
+    // GET /api/v1/drug/search?q=타이레놀&page=0&size=20
     @GetMapping("/search")
     public ResponseEntity<SearchResponse> search(
             @RequestParam("q") String q,
@@ -32,5 +36,13 @@ public class DrugController {
     ) {
         return ResponseEntity.ok(drugService.search(q, page, size));
     }
+
+    // ---- (상세) 북마크된 약물 이미지 조회 ----
+    // GET /api/v1/drug/details/{drugId}/images
+    @GetMapping("/details/{drugId}/images")
+    public ResponseEntity<ImageResponse> images(@PathVariable String drugId) {
+        return ResponseEntity.ok(drugService.getDrugImages(drugId));
+    }
+
 }
 
