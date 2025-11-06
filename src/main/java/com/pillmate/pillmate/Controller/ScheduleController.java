@@ -147,6 +147,27 @@ public class ScheduleController {
         return ResponseEntity.ok(response);
     }
     
+    @Operation(summary = "복약 일정 단일 조회", description = "일정 ID를 통해 특정 복약 일정의 상세 정보를 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "일정 조회 성공"),
+        @ApiResponse(responseCode = "404", description = "존재하지 않는 게시물입니다", 
+                     content = @io.swagger.v3.oas.annotations.media.Content(
+                         mediaType = "application/json",
+                         schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = com.pillmate.pillmate.DTO.ErrorResponse.class)
+                     ))
+    })
+    @GetMapping("/schedules/{scheduleId}")
+    public ResponseEntity<ScheduleDetailResponse> getScheduleById(@PathVariable Long scheduleId) {
+        ScheduleResponse scheduleResponse = scheduleService.getScheduleById(scheduleId);
+        
+        ScheduleDetailResponse response = ScheduleDetailResponse.builder()
+                .message("일정 조회 성공")
+                .data(scheduleResponse)
+                .build();
+        
+        return ResponseEntity.ok(response);
+    }
+    
     @lombok.Getter
     @lombok.Builder
     @lombok.NoArgsConstructor
@@ -201,6 +222,15 @@ public class ScheduleController {
                 .build();
         
         return ResponseEntity.ok(response);
+    }
+    
+    @lombok.Getter
+    @lombok.Builder
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    public static class ScheduleDetailResponse {
+        private String message;
+        private ScheduleResponse data;
     }
     
     @lombok.Getter
