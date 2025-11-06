@@ -11,4 +11,5 @@ public class SensitivityUpdateResponse {
 	private String sensitivityLevel;
 	private Double halfLifeHours;
 	private String updatedAt;
+
 }
