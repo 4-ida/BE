@@ -3,6 +3,7 @@ package com.pillmate.pillmate.Controller;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -183,6 +184,25 @@ public class ScheduleController {
         return ResponseEntity.ok(response);
     }
     
+    @Operation(summary = "복약 일정 삭제", description = "지정된 복약 일정을 삭제합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "일정 삭제 성공"),
+        @ApiResponse(responseCode = "404", description = "일정을 찾을 수 없음")
+    })
+    @DeleteMapping("/schedules/{scheduleId}")
+    public ResponseEntity<ScheduleDeleteResponse> deleteSchedule(@PathVariable Long scheduleId) {
+        Long deletedScheduleId = scheduleService.deleteSchedule(scheduleId);
+        
+        ScheduleDeleteResponse response = ScheduleDeleteResponse.builder()
+                .message("복약 일정이 삭제되었습니다.")
+                .data(ScheduleDeleteResponse.ScheduleDeleteData.builder()
+                        .scheduleId(deletedScheduleId)
+                        .build())
+                .build();
+        
+        return ResponseEntity.ok(response);
+    }
+    
     @lombok.Getter
     @lombok.Builder
     @lombok.NoArgsConstructor
@@ -190,6 +210,23 @@ public class ScheduleController {
     public static class ScheduleUpdateResponseWrapper {
         private String message;
         private ScheduleUpdateResponse data;
+    }
+    
+    @lombok.Getter
+    @lombok.Builder
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    public static class ScheduleDeleteResponse {
+        private String message;
+        private ScheduleDeleteData data;
+        
+        @lombok.Getter
+        @lombok.Builder
+        @lombok.NoArgsConstructor
+        @lombok.AllArgsConstructor
+        public static class ScheduleDeleteData {
+            private Long scheduleId;
+        }
     }
 }
 
