@@ -44,5 +44,12 @@ public class DrugController {
         return ResponseEntity.ok(drugService.getDrugImages(drugId));
     }
 
+    // ---- (상세) 북마크된 약물 기본 정보 조회 ----
+    // GET /api/v1/drug/details/{drugId}
+    @GetMapping("/details/{drugId}")
+    public ResponseEntity<DrugInfoResponse> info(@PathVariable String drugId) {
+        return ResponseEntity.ok(drugService.getDrugInfo(drugId));
+    }
+
 }
 
