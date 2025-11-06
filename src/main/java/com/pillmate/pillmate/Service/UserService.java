@@ -2,7 +2,8 @@ package com.pillmate.pillmate.Service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import com.pillmate.pillmate.DTO.BasicProfileResponse;
+import com.pillmate.pillmate.DTO.BasicProfileUpdateRequest;
 import com.pillmate.pillmate.DTO.SignUpRequest;
 import com.pillmate.pillmate.DTO.UserProfileResponse;
 import com.pillmate.pillmate.DTO.UserProfileUpdateRequest;
@@ -84,5 +85,28 @@ public class UserService {
 
         userRepository.save(user);
         return UserProfileResponse.from(user);
+    }
+    // 기본 프로필 조회
+    public BasicProfileResponse getBasicProfile(Long userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
+        return BasicProfileResponse.from(user);
+    }
+
+    // 기본 프로필 수정
+    @Transactional
+    public BasicProfileResponse updateBasicProfile(Long userId, BasicProfileUpdateRequest req) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
+
+        user.updateBasicProfile(
+            req.getDefaultCaffeineAmount(),
+            req.getDefaultAlcoholAmount(),
+            req.getCurrentMedications(),
+            req.getPreferredBeverageType()
+        );
+
+        userRepository.save(user);
+        return BasicProfileResponse.from(user);
     }
 }
