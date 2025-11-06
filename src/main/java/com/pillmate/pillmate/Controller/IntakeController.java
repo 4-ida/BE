@@ -2,11 +2,14 @@ package com.pillmate.pillmate.Controller;
 
 import com.pillmate.pillmate.DTO.IntakeRequest;
 import com.pillmate.pillmate.DTO.IntakeResponse;
+import com.pillmate.pillmate.DTO.IntakeResidualResponse;
 import com.pillmate.pillmate.DTO.SensitivityUpdateRequest;
 import com.pillmate.pillmate.DTO.SensitivityUpdateResponse;
 import com.pillmate.pillmate.Domain.Intake;
 import com.pillmate.pillmate.Service.IntakeService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,7 +22,7 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/intakespage/intakes")
-@Tag(name = "Intake", description = "섭취(음료) 기록 등록·조회·수정·삭제 API")
+@Tag(name = "Intake", description = "섭취(음료) 기록 등록·조회·수정·삭제 및 잔류량 계산 API")
 public class IntakeController {
 
 	private final IntakeService intakeService;
@@ -68,6 +71,7 @@ public class IntakeController {
 		intakeService.deleteByUser(userId);
 		return ResponseEntity.noContent().build();
 	}
+
 	@Operation(summary = "섭취 민감도(반감기) 설정", description = "사용자가 특정 섭취 타입에 대해 민감도(WEAK/MEDIUM/STRONG)를 설정하면, 이에 맞는 반감기 시간을 저장합니다.")
 	@ApiResponses({
 		@ApiResponse(responseCode = "200", description = "설정 성공"),
@@ -81,4 +85,23 @@ public class IntakeController {
 		return ResponseEntity.ok(res);
 	}
 
+	@Operation(
+		summary = "섭취 잔류량 계산",
+		description = """
+                    특정 섭취 로그(intakeId)에 대해 현재 시점 기준으로 남아있는 잔류량을 계산합니다.
+                    사용자의 민감도(반감기 설정)에 따라 잔류 카페인(또는 약물) 양과 소멸 시점을 계산합니다.
+                    """
+	)
+	@ApiResponses({
+		@ApiResponse(
+			responseCode = "200",
+			description = "계산 성공",
+			content = @Content(schema = @Schema(implementation = IntakeResidualResponse.class))
+		),
+		@ApiResponse(responseCode = "404", description = "섭취 기록 또는 민감도 설정 없음")
+	})
+	@GetMapping("/{intakeId}/residual")
+	public ResponseEntity<IntakeResidualResponse> getResidual(@PathVariable Long intakeId) {
+		return ResponseEntity.ok(intakeService.getResidualByIntakeId(intakeId));
+	}
 }

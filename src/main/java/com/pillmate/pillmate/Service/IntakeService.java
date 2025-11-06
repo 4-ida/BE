@@ -12,14 +12,19 @@ import com.pillmate.pillmate.Repository.IntakeRepository;
 import com.pillmate.pillmate.Repository.UserIntakeSensitivityRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.pillmate.pillmate.DTO.IntakeResidualResponse;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class IntakeService {
+
 
 	private final IntakeRepository intakeRepository;
 
@@ -128,4 +133,43 @@ public class IntakeService {
 			case STRONG -> 9.0;
 		};
 	}
+	public IntakeResidualResponse getResidualByIntakeId(Long intakeId) {
+		// 섭취 기록 조회
+		Intake intake = intakeRepository.findById(intakeId)
+			.orElseThrow(() -> new IllegalArgumentException("섭취 기록을 찾을 수 없습니다."));
+
+		Long userId = intake.getUserId();
+		IntakeType intakeType = intake.getIntakeType();
+
+		// 민감도 설정 조회
+		UserIntakeSensitivity sensitivity = userIntakeSensitivityRepository
+			.findByUserIdAndIntakeType(userId, intakeType)
+			.orElseThrow(() -> new IllegalStateException("민감도 설정이 없습니다."));
+
+		double baseHalfLife = sensitivity.getHalfLifeHours();
+		double usedHalfLife = baseHalfLife;
+		double originalAmount = intake.getAmount();
+
+		LocalDateTime now = LocalDateTime.now();
+		LocalDateTime createdAt = intake.getCreatedAt();
+		double hoursPassed = Duration.between(createdAt, now).toMinutes() / 60.0;
+		double remaining = originalAmount * Math.pow(0.5, hoursPassed / usedHalfLife);
+
+		LocalDateTime estimatedZeroAt = createdAt.plusHours((long) (usedHalfLife * 5));
+
+		Map<String, Object> assumptions = new HashMap<>();
+		assumptions.put("halfLifeHours", usedHalfLife);
+		assumptions.put("hoursPassed", hoursPassed);
+
+		return new IntakeResidualResponse(
+			intake.getIntakeId(),
+			intakeType.name(),
+			originalAmount,
+			remaining,
+			estimatedZeroAt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd:HH-mm")),
+			assumptions,
+			now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd:HH-mm"))
+		);
+	}
+
 }
