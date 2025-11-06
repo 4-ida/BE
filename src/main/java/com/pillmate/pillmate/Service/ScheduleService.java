@@ -65,6 +65,18 @@ public class ScheduleService {
     }
     
     /**
+     * ID로 단일 일정 조회
+     * @param scheduleId 일정 ID
+     * @return 일정 정보
+     */
+    public ScheduleResponse getScheduleById(Long scheduleId) {
+        Schedule schedule = scheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 게시물입니다"));
+        
+        return ScheduleResponse.from(schedule);
+    }
+    
+    /**
      * 특정 날짜의 일정 조회
      * @param date 조회할 날짜 (YYYY-MM-DD 형식)
      * @return 해당 날짜의 일정 목록
