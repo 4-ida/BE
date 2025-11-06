@@ -33,5 +33,9 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     @Query("SELECT s FROM Schedule s WHERE s.startDate <= :endDate AND s.endDate >= :startDate ORDER BY s.alarmAt")
     List<Schedule> findByDateRange(@Param("startDate") LocalDate startDate, 
                                     @Param("endDate") LocalDate endDate);
+    
+    // 특정 날짜의 일정 조회 (해당 날짜가 startDate와 endDate 사이에 있는 일정)
+    @Query("SELECT s FROM Schedule s WHERE s.startDate <= :date AND s.endDate >= :date AND s.status != 'CANCELLED' ORDER BY s.alarmAt")
+    List<Schedule> findByDate(@Param("date") LocalDate date);
 }
 

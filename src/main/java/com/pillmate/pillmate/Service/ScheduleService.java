@@ -13,6 +13,10 @@ import com.pillmate.pillmate.Repository.ScheduleRepository;
 
 import lombok.RequiredArgsConstructor;
 
+import java.time.LocalDate;
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -56,6 +60,35 @@ public class ScheduleService {
         
         Schedule savedSchedule = scheduleRepository.save(schedule);
         return ScheduleResponse.from(savedSchedule);
+    }
+    
+    /**
+     * 특정 날짜의 일정 조회
+     * @param date 조회할 날짜 (YYYY-MM-DD 형식)
+     * @return 해당 날짜의 일정 목록
+     */
+    public List<ScheduleResponse> getSchedulesByDate(LocalDate date) {
+        List<Schedule> schedules = scheduleRepository.findByDate(date);
+        return schedules.stream()
+                .map(ScheduleResponse::from)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * 특정 기간의 일정 조회
+     * @param from 시작 날짜 (YYYY-MM-DD 형식)
+     * @param to 종료 날짜 (YYYY-MM-DD 형식)
+     * @return 해당 기간의 일정 목록
+     */
+    public List<ScheduleResponse> getSchedulesByDateRange(LocalDate from, LocalDate to) {
+        if (from.isAfter(to)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "시작일은 종료일보다 이전이어야 합니다");
+        }
+        
+        List<Schedule> schedules = scheduleRepository.findByDateRange(from, to);
+        return schedules.stream()
+                .map(ScheduleResponse::from)
+                .collect(Collectors.toList());
     }
 }
 

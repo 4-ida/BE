@@ -25,6 +25,9 @@ public class ScheduleResponse {
     @Schema(description = "약품 ID", example = "12")
     private Long drugId;
     
+    @Schema(description = "약품명", example = "아모크라정")
+    private String drugName;
+    
     @Schema(description = "복용량", example = "1정")
     private String dose;
     
@@ -47,6 +50,7 @@ public class ScheduleResponse {
         return ScheduleResponse.builder()
                 .scheduleId(schedule.getScheduleId())
                 .drugId(schedule.getDrugId())
+                .drugName(null)  // TODO: Drug 엔티티와 조인하여 실제 약품명 조회
                 .dose(schedule.getDose())
                 .alarmAt(schedule.getAlarmAt())
                 .memo(schedule.getMemo())
