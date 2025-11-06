@@ -1,15 +1,21 @@
 package com.pillmate.pillmate.Controller;
 
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.pillmate.pillmate.DTO.ScheduleRequest;
 import com.pillmate.pillmate.DTO.ScheduleResponse;
 import com.pillmate.pillmate.Service.ScheduleService;
+
+import java.time.LocalDate;
+import java.util.List;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -72,6 +78,84 @@ public class ScheduleController {
             private String status;
             private java.time.LocalDate startDate;  // 복용 시작일
             private java.time.LocalDate endDate;    // 복용 종료일
+        }
+    }
+    
+    @Operation(summary = "복약 일정 조회", description = "단일 날짜 또는 기간으로 복약 일정 목록을 조회합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "일정 조회 성공"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청")
+    })
+    @GetMapping("/schedules")
+    public ResponseEntity<ScheduleListResponse> getSchedules(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        List<ScheduleResponse> schedules;
+        
+        // date와 from/to 모두 입력된 경우 - 교집합 방식
+        if (date != null && from != null && to != null) {
+            // date가 from/to 범위 안에 있는지 확인
+            if (!date.isBefore(from) && !date.isAfter(to)) {
+                // date가 범위 안에 있으면 → date의 일정만 반환
+                schedules = scheduleService.getSchedulesByDate(date);
+            } else {
+                // date가 범위 밖이면 → 에러 반환
+                return ResponseEntity.badRequest().body(ScheduleListResponse.builder()
+                        .message("date 파라미터는 from과 to 범위 내에 있어야 합니다.")
+                        .data(ScheduleListResponse.ScheduleListData.builder()
+                                .schedules(java.util.Collections.emptyList())
+                                .build())
+                        .build());
+            }
+        } else if (from != null && to != null) {
+            // 기간 조회
+            schedules = scheduleService.getSchedulesByDateRange(from, to);
+        } else if (date != null) {
+            // 단일 날짜 조회
+            schedules = scheduleService.getSchedulesByDate(date);
+        } else if (from != null || to != null) {
+            // from 또는 to만 입력한 경우 에러
+            return ResponseEntity.badRequest().body(ScheduleListResponse.builder()
+                    .message("from과 to 파라미터는 함께 입력해야 합니다.")
+                    .data(ScheduleListResponse.ScheduleListData.builder()
+                            .schedules(java.util.Collections.emptyList())
+                            .build())
+                    .build());
+        } else {
+            // 파라미터 없음 - 400 에러
+            return ResponseEntity.badRequest().body(ScheduleListResponse.builder()
+                    .message("date 파라미터 또는 from, to 파라미터가 필요합니다.")
+                    .data(ScheduleListResponse.ScheduleListData.builder()
+                            .schedules(java.util.Collections.emptyList())
+                            .build())
+                    .build());
+        }
+        
+        ScheduleListResponse response = ScheduleListResponse.builder()
+                .message("일정 조회 성공")
+                .data(ScheduleListResponse.ScheduleListData.builder()
+                        .schedules(schedules)
+                        .build())
+                .build();
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    @lombok.Getter
+    @lombok.Builder
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    public static class ScheduleListResponse {
+        private String message;
+        private ScheduleListData data;
+        
+        @lombok.Getter
+        @lombok.Builder
+        @lombok.NoArgsConstructor
+        @lombok.AllArgsConstructor
+        public static class ScheduleListData {
+            private List<ScheduleResponse> schedules;
         }
     }
 }
