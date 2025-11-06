@@ -183,5 +183,19 @@ public class ScheduleService {
                 .endDate(savedSchedule.getEndDate())
                 .build();
     }
+    
+    /**
+     * 일정 삭제
+     * @param scheduleId 일정 ID
+     * @return 삭제된 일정 ID
+     */
+    @Transactional
+    public Long deleteSchedule(Long scheduleId) {
+        Schedule schedule = scheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "일정을 찾을 수 없습니다"));
+        
+        scheduleRepository.delete(schedule);
+        return scheduleId;
+    }
 }
 
