@@ -69,5 +69,34 @@ public class Schedule {
     @LastModifiedDate
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+    
+    // 일정 수정을 위한 메서드들
+    public void updateAlarmAt(LocalDateTime alarmAt) {
+        this.alarmAt = alarmAt;
+    }
+    
+    public void updateDose(String dose) {
+        this.dose = dose;
+    }
+    
+    public void updateMemo(String memo) {
+        this.memo = memo;
+    }
+    
+    public void updateStatus(ScheduleStatus status) {
+        this.status = status;
+    }
+    
+    public void updateAlarmEnabled(Boolean alarmEnabled) {
+        this.alarmEnabled = alarmEnabled;
+    }
+    
+    public void updateStartDate(LocalDate startDate) {
+        this.startDate = startDate;
+    }
+    
+    public void updateEndDate(LocalDate endDate) {
+        this.endDate = endDate;
+    }
 }
 

@@ -4,7 +4,9 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -12,6 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.pillmate.pillmate.DTO.ScheduleRequest;
 import com.pillmate.pillmate.DTO.ScheduleResponse;
+import com.pillmate.pillmate.DTO.ScheduleUpdateRequest;
+import com.pillmate.pillmate.DTO.ScheduleUpdateResponse;
 import com.pillmate.pillmate.Service.ScheduleService;
 
 import java.time.LocalDate;
@@ -157,6 +161,35 @@ public class ScheduleController {
         public static class ScheduleListData {
             private List<ScheduleResponse> schedules;
         }
+    }
+    
+    @Operation(summary = "복약 일정 수정", description = "기존 일정의 세부 정보를 수정합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "일정 수정 성공"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "404", description = "일정을 찾을 수 없음")
+    })
+    @PutMapping("/schedules/{scheduleId}")
+    public ResponseEntity<ScheduleUpdateResponseWrapper> updateSchedule(
+            @PathVariable Long scheduleId,
+            @Valid @RequestBody ScheduleUpdateRequest request) {
+        ScheduleUpdateResponse updateResponse = scheduleService.updateSchedule(scheduleId, request);
+        
+        ScheduleUpdateResponseWrapper response = ScheduleUpdateResponseWrapper.builder()
+                .message("복약 일정이 수정되었습니다.")
+                .data(updateResponse)
+                .build();
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    @lombok.Getter
+    @lombok.Builder
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    public static class ScheduleUpdateResponseWrapper {
+        private String message;
+        private ScheduleUpdateResponse data;
     }
 }
 
