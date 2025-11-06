@@ -107,6 +107,35 @@ public class DrugService {
                 .build();
     }
 
+    // (2) 기본 정보 조회
+    public DrugInfoResponse getDrugInfo(String drugId) {
+        Drug drug = drugRepository.findById(drugId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 약물입니다."));
+
+        // caution / warnings 은 추후 DB화. 지금은 기본값/템플릿.
+        DrugInfoResponse.Caution caution = DrugInfoResponse.Caution.builder()
+                .alcohol("복용 전후 12시간 음주 금지")
+                .caffeine("복용 전후 6시간 카페인 섭취 자제")
+                .build();
+
+        List<String> warnings = List.of(
+                "간 질환자 복용 전 의사 상담",
+                "과량 복용 시 간 손상 위험"
+        );
+
+        return DrugInfoResponse.builder()
+                .drugId(drugId)
+                .name(drug.getName())
+                .ingredient(drug.getIngredients())
+                .form(drug.getForm())
+                .strength(drug.getStrength())
+                .rxType("일반의약품")               // 추후 필드 생기면 대체
+                .caution(caution)
+                .warnings(warnings)
+                .bookmarked(true)                  // 북마크 화면에서 진입했다고 가정
+                .build();
+    }
+
     
 
 }
