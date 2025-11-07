@@ -2,9 +2,11 @@ package com.pillmate.pillmate.Controller;
 
 import com.pillmate.pillmate.DTO.SuggestResponse;
 import com.pillmate.pillmate.DTO.SearchResponse;
-import com.pillmate.pillmate.DTO.ImageResponse;
+import com.pillmate.pillmate.DTO.BookmarkResponse;
 import com.pillmate.pillmate.DTO.DrugInfoResponse;
 import com.pillmate.pillmate.DTO.InteractionResponse;
+import com.pillmate.pillmate.Service.BookmarkService;
+import com.pillmate.pillmate.DTO.ImageResponse;
 import com.pillmate.pillmate.Service.DrugService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 public class DrugController {
 
     private final DrugService drugService;
+    private final BookmarkService bookmarkService;
 
     // ---- 약 명 자동완성 ----
     // GET /api/v1/drug/suggest?q=타이&limit=10
@@ -57,6 +60,11 @@ public class DrugController {
     @GetMapping("/details/{drugId}/interactions")
     public ResponseEntity<InteractionResponse> interactions(@PathVariable String drugId) {
         return ResponseEntity.ok(drugService.getDrugInteractions(drugId));
+    }
+    //북마크추가  POST /api/v1/drug/bookmarks/{drugId}
+    @PostMapping("/bookmarks/{drugId}")
+    public ResponseEntity<BookmarkResponse> addBookmark(@PathVariable String drugId) {
+        return ResponseEntity.ok(bookmarkService.addBookmark(drugId));
     }
 
 }

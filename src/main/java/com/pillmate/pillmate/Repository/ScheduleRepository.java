@@ -13,7 +13,6 @@ import com.pillmate.pillmate.Domain.Schedule;
 
 @Repository
 public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
-    
     // 같은 약물과 같은 알림 시각에 존재하는 일정 조회 (완전 중복 체크용)
     @Query("SELECT s FROM Schedule s WHERE s.drugId = :drugId " +
            "AND s.alarmAt = :alarmAt")
