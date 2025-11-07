@@ -108,34 +108,7 @@ public class DrugService {
                 .build();
     }
 
-    // (2) 기본 정보 조회
-    public DrugInfoResponse getDrugInfo(String drugId) {
-        Drug drug = drugRepository.findById(drugId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 약물입니다."));
 
-        // caution / warnings 은 추후 DB화. 지금은 기본값/템플릿.
-        DrugInfoResponse.Caution caution = DrugInfoResponse.Caution.builder()
-                .alcohol("복용 전후 12시간 음주 금지")
-                .caffeine("복용 전후 6시간 카페인 섭취 자제")
-                .build();
-
-        List<String> warnings = List.of(
-                "간 질환자 복용 전 의사 상담",
-                "과량 복용 시 간 손상 위험"
-        );
-
-        return DrugInfoResponse.builder()
-                .drugId(drugId)
-                .name(drug.getName())
-                .ingredient(drug.getIngredients())
-                .form(drug.getForm())
-                .strength(drug.getStrength())
-                .rxType("일반의약품")               // 추후 필드 생기면 대체
-                .caution(caution)
-                .warnings(warnings)
-                .bookmarked(true)                  // 북마크 화면에서 진입했다고 가정
-                .build();
-    }
     // (2) 기본 정보 조회
     public DrugInfoResponse getDrugInfo(String drugId) {
         Drug drug = drugRepository.findById(drugId)
@@ -167,44 +140,39 @@ public class DrugService {
 
     // (3) 상호작용 조회
     public InteractionResponse getDrugInteractions(String drugId) {
-        Drug drug = drugRepository.findById(drugId)
+    Drug drug = drugRepository.findById(drugId)
             .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 약물입니다."));
 
-        // 기본 정책값(카페인 6h, 알코올 12h)
-        InteractionResponse.SafeWindow caffeineWin =
-                InteractionResponse.SafeWindow.builder()
-                    .beforeMinutes(360).afterMinutes(360).build();
+    // 카페인 안전시간
+    InteractionResponse.SafeWindow caffeineWin = new InteractionResponse.SafeWindow();
+    caffeineWin.setBeforeMinutes(360);
+    caffeineWin.setAfterMinutes(360);
 
-        InteractionResponse.SafeWindow alcoholWin =
-                InteractionResponse.SafeWindow.builder()
-                    .beforeMinutes(720).afterMinutes(720).build();
+    // 알코올 안전시간
+    InteractionResponse.SafeWindow alcoholWin = new InteractionResponse.SafeWindow();
+    alcoholWin.setBeforeMinutes(720);
+    alcoholWin.setAfterMinutes(720);
 
-        List<InteractionResponse.Beverage> beverage = List.of(
-                InteractionResponse.Beverage.builder()
-                        .target("카페인")
-                        .recommendation("복용 전후 6시간 카페인 섭취 자제")
-                        .safeWindow(caffeineWin)
-                        .build(),
-                InteractionResponse.Beverage.builder()
-                        .target("알코올")
-                        .recommendation("복용 전후 12시간 음주 금지")
-                        .safeWindow(alcoholWin)
-                        .build()
-        );
+    // 카페인 권고
+    InteractionResponse.Beverage caffeine = new InteractionResponse.Beverage();
+    caffeine.setTarget("카페인");
+    caffeine.setRecommendation("복용 전후 6시간 카페인 섭취 자제");
+    caffeine.setSafeWindow(caffeineWin);
 
-        InteractionResponse.Interactions interactions =
-                InteractionResponse.Interactions.builder()
-                        .beverage(beverage)
-                        .build();
+    // 알코올 권고
+    InteractionResponse.Beverage alcohol = new InteractionResponse.Beverage();
+    alcohol.setTarget("알코올");
+    alcohol.setRecommendation("복용 전후 12시간 음주 금지");
+    alcohol.setSafeWindow(alcoholWin);
 
-        return InteractionResponse.builder()
-                .drugId(drug.getId())
-                .interactions(interactions)
-                .build();
-    }
+    InteractionResponse.Interactions inter = new InteractionResponse.Interactions();
+    inter.setBeverage(java.util.List.of(caffeine, alcohol));
 
-    
-
+    InteractionResponse res = new InteractionResponse();
+    res.setDrugId(drug.getId());
+    res.setInteractions(inter);
+    return res;
+}
 }
 
 
