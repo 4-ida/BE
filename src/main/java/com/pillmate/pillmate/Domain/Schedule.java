@@ -35,6 +35,9 @@ public class Schedule {
     private Long scheduleId;
     
     @Column(nullable = false)
+    private Long userId;  // 사용자 ID
+    
+    @Column(nullable = false)
     private Long drugId;  // 약품 ID
     
     @Column(nullable = false, length = 100)

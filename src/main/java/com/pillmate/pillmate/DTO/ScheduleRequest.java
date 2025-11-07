@@ -19,6 +19,10 @@ import lombok.NoArgsConstructor;
 @Schema(description = "복약 일정 등록 요청")
 public class ScheduleRequest {
     
+    @NotNull(message = "사용자 ID는 필수입니다")
+    @Schema(description = "사용자 ID", example = "1", required = true)
+    private Long userId;
+    
     @NotNull(message = "약품 ID는 필수입니다")
     @Schema(description = "약품 ID", example = "12", required = true)
     private Long drugId;
