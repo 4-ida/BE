@@ -1,5 +1,6 @@
 package com.pillmate.pillmate.Controller;
 
+import com.pillmate.pillmate.DTO.BookmarkListResponse;
 import com.pillmate.pillmate.DTO.SuggestResponse;
 import com.pillmate.pillmate.DTO.SearchResponse;
 import com.pillmate.pillmate.DTO.BookmarkResponse;
@@ -65,6 +66,16 @@ public class DrugController {
     @PostMapping("/bookmarks/{drugId}")
     public ResponseEntity<BookmarkResponse> addBookmark(@PathVariable String drugId) {
         return ResponseEntity.ok(bookmarkService.addBookmark(drugId));
+    }
+
+    //북마크목록조회 GET /api/v1/drug/bookmarks?page={page}&size={size}&sort={sort}
+    @GetMapping("/bookmarks")
+    public ResponseEntity<BookmarkListResponse> listBookmarks(
+            @RequestParam(value = "page", defaultValue = "0") Integer page,
+            @RequestParam(value = "size", defaultValue = "20") Integer size,
+            @RequestParam(value = "sort", defaultValue = "recent") String sort
+    ) {
+        return ResponseEntity.ok(bookmarkService.listBookmarks(page, size, sort));
     }
 
 }
