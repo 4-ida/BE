@@ -4,6 +4,7 @@ import com.pillmate.pillmate.DTO.SuggestResponse;
 import com.pillmate.pillmate.DTO.SearchResponse;
 import com.pillmate.pillmate.DTO.ImageResponse;
 import com.pillmate.pillmate.DTO.DrugInfoResponse;
+import com.pillmate.pillmate.DTO.InteractionResponse;
 import com.pillmate.pillmate.Service.DrugService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -49,6 +50,13 @@ public class DrugController {
     @GetMapping("/details/{drugId}")
     public ResponseEntity<DrugInfoResponse> info(@PathVariable String drugId) {
         return ResponseEntity.ok(drugService.getDrugInfo(drugId));
+    }
+
+    // ---- (상세) 북마크된 약물 상호작용 정보 조회 ----
+    // GET /api/v1/drug/details/{drugId}/interactions
+    @GetMapping("/details/{drugId}/interactions")
+    public ResponseEntity<InteractionResponse> interactions(@PathVariable String drugId) {
+        return ResponseEntity.ok(drugService.getDrugInteractions(drugId));
     }
 
 }

@@ -6,6 +6,7 @@ import com.pillmate.pillmate.DTO.SuggestResponse;
 import com.pillmate.pillmate.DTO.SearchResponse;
 import com.pillmate.pillmate.DTO.ImageResponse;
 import com.pillmate.pillmate.DTO.DrugInfoResponse;
+import com.pillmate.pillmate.DTO.InteractionResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
@@ -133,6 +134,72 @@ public class DrugService {
                 .caution(caution)
                 .warnings(warnings)
                 .bookmarked(true)                  // 북마크 화면에서 진입했다고 가정
+                .build();
+    }
+    // (2) 기본 정보 조회
+    public DrugInfoResponse getDrugInfo(String drugId) {
+        Drug drug = drugRepository.findById(drugId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 약물입니다."));
+
+        // caution / warnings 은 추후 DB화. 지금은 기본값/템플릿.
+        DrugInfoResponse.Caution caution = DrugInfoResponse.Caution.builder()
+                .alcohol("복용 전후 12시간 음주 금지")
+                .caffeine("복용 전후 6시간 카페인 섭취 자제")
+                .build();
+
+        List<String> warnings = List.of(
+                "간 질환자 복용 전 의사 상담",
+                "과량 복용 시 간 손상 위험"
+        );
+
+        return DrugInfoResponse.builder()
+                .drugId(drugId)
+                .name(drug.getName())
+                .ingredient(drug.getIngredients())
+                .form(drug.getForm())
+                .strength(drug.getStrength())
+                .rxType("일반의약품")               // 추후 필드 생기면 대체
+                .caution(caution)
+                .warnings(warnings)
+                .bookmarked(true)                  // 북마크 화면에서 진입했다고 가정
+                .build();
+    }
+
+    // (3) 상호작용 조회
+    public InteractionResponse getDrugInteractions(String drugId) {
+        Drug drug = drugRepository.findById(drugId)
+            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 약물입니다."));
+
+        // 기본 정책값(카페인 6h, 알코올 12h)
+        InteractionResponse.SafeWindow caffeineWin =
+                InteractionResponse.SafeWindow.builder()
+                    .beforeMinutes(360).afterMinutes(360).build();
+
+        InteractionResponse.SafeWindow alcoholWin =
+                InteractionResponse.SafeWindow.builder()
+                    .beforeMinutes(720).afterMinutes(720).build();
+
+        List<InteractionResponse.Beverage> beverage = List.of(
+                InteractionResponse.Beverage.builder()
+                        .target("카페인")
+                        .recommendation("복용 전후 6시간 카페인 섭취 자제")
+                        .safeWindow(caffeineWin)
+                        .build(),
+                InteractionResponse.Beverage.builder()
+                        .target("알코올")
+                        .recommendation("복용 전후 12시간 음주 금지")
+                        .safeWindow(alcoholWin)
+                        .build()
+        );
+
+        InteractionResponse.Interactions interactions =
+                InteractionResponse.Interactions.builder()
+                        .beverage(beverage)
+                        .build();
+
+        return InteractionResponse.builder()
+                .drugId(drug.getId())
+                .interactions(interactions)
                 .build();
     }
 
