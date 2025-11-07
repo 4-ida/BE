@@ -47,6 +47,7 @@ public class ScheduleService {
         
         // 일정 생성
         Schedule schedule = Schedule.builder()
+                .userId(request.getUserId())
                 .drugId(request.getDrugId())
                 .dose(request.getDose())
                 .alarmAt(request.getAlarmAt())
