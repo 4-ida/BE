@@ -5,9 +5,11 @@ import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.pillmate.pillmate.Config.JwtUtil;
@@ -16,6 +18,7 @@ import com.pillmate.pillmate.DTO.LoginRequest;
 import com.pillmate.pillmate.DTO.LoginResponse;
 import com.pillmate.pillmate.DTO.SignUpRequest;
 import com.pillmate.pillmate.DTO.SignUpResponse;
+import com.pillmate.pillmate.DTO.EmailAvailabilityResponse;
 import com.pillmate.pillmate.Domain.User;
 import com.pillmate.pillmate.Service.UserService;
 
@@ -34,6 +37,29 @@ public class AuthController {
     
     private final UserService userService;
     private final JwtUtil jwtUtil;
+    
+    @Operation(summary = "이메일 중복 확인", description = "이메일 형식과 중복 여부를 검증합니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "사용 가능한 이메일"),
+        @ApiResponse(responseCode = "400", description = "잘못된 이메일 형식"),
+        @ApiResponse(responseCode = "409", description = "중복된 이메일")
+    })
+    @GetMapping("/signup/check-email")
+    public ResponseEntity<EmailAvailabilityResponse> checkEmail(@RequestParam("email") String email) {
+        String normalized = email == null ? null : email.trim();
+        boolean available = userService.checkEmailAvailability(normalized);
+
+        EmailAvailabilityResponse response = EmailAvailabilityResponse.builder()
+                .message("사용 가능한 이메일입니다.")
+                .success(true)
+                .data(EmailAvailabilityResponse.Data.builder()
+                        .email(normalized)
+                        .isAvailable(available)
+                        .build())
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
     
     @Operation(summary = "회원가입", description = "새로운 사용자를 등록합니다.")
     @ApiResponses(value = {
