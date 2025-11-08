@@ -5,7 +5,6 @@ import com.pillmate.pillmate.Repository.DrugRepository;
 import com.pillmate.pillmate.DTO.SuggestResponse;
 import com.pillmate.pillmate.DTO.SearchResponse;
 import com.pillmate.pillmate.DTO.ImageResponse;
-import com.pillmate.pillmate.DTO.DrugInfoResponse;
 import com.pillmate.pillmate.DTO.InteractionResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -75,7 +74,7 @@ public class DrugService {
                 .build();
     }
 
-    /* ==================== [추가] 상세 3종 ==================== */
+    /* ==================== [추가] 상세 2종 ==================== */
 
     // (1) 이미지 조회
     public ImageResponse getDrugImages(String drugId) {
@@ -108,71 +107,37 @@ public class DrugService {
                 .build();
     }
 
-
-    // (2) 기본 정보 조회
-    public DrugInfoResponse getDrugInfo(String drugId) {
+    // (2) 상호작용 조회
+    public InteractionResponse getDrugInteractions(String drugId) {
         Drug drug = drugRepository.findById(drugId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 약물입니다."));
 
-        // caution / warnings 은 추후 DB화. 지금은 기본값/템플릿.
-        DrugInfoResponse.Caution caution = DrugInfoResponse.Caution.builder()
-                .alcohol("복용 전후 12시간 음주 금지")
-                .caffeine("복용 전후 6시간 카페인 섭취 자제")
-                .build();
+        InteractionResponse.SafeWindow caffeineWin = new InteractionResponse.SafeWindow();
+        caffeineWin.setBeforeMinutes(360);
+        caffeineWin.setAfterMinutes(360);
 
-        List<String> warnings = List.of(
-                "간 질환자 복용 전 의사 상담",
-                "과량 복용 시 간 손상 위험"
-        );
+        InteractionResponse.SafeWindow alcoholWin = new InteractionResponse.SafeWindow();
+        alcoholWin.setBeforeMinutes(720);
+        alcoholWin.setAfterMinutes(720);
 
-        return DrugInfoResponse.builder()
-                .drugId(drugId)
-                .name(drug.getName())
-                .ingredient(drug.getIngredients())
-                .form(drug.getForm())
-                .strength(drug.getStrength())
-                .rxType("일반의약품")               // 추후 필드 생기면 대체
-                .caution(caution)
-                .warnings(warnings)
-                .bookmarked(true)                  // 북마크 화면에서 진입했다고 가정
-                .build();
+        InteractionResponse.Beverage caffeine = new InteractionResponse.Beverage();
+        caffeine.setTarget("카페인");
+        caffeine.setRecommendation("복용 전후 6시간 카페인 섭취 자제");
+        caffeine.setSafeWindow(caffeineWin);
+
+        InteractionResponse.Beverage alcohol = new InteractionResponse.Beverage();
+        alcohol.setTarget("알코올");
+        alcohol.setRecommendation("복용 전후 12시간 음주 금지");
+        alcohol.setSafeWindow(alcoholWin);
+
+        InteractionResponse.Interactions inter = new InteractionResponse.Interactions();
+        inter.setBeverage(java.util.List.of(caffeine, alcohol));
+
+        InteractionResponse res = new InteractionResponse();
+        res.setDrugId(drug.getId());
+        res.setInteractions(inter);
+        return res;
     }
-
-    // (3) 상호작용 조회
-    public InteractionResponse getDrugInteractions(String drugId) {
-    Drug drug = drugRepository.findById(drugId)
-            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 약물입니다."));
-
-    // 카페인 안전시간
-    InteractionResponse.SafeWindow caffeineWin = new InteractionResponse.SafeWindow();
-    caffeineWin.setBeforeMinutes(360);
-    caffeineWin.setAfterMinutes(360);
-
-    // 알코올 안전시간
-    InteractionResponse.SafeWindow alcoholWin = new InteractionResponse.SafeWindow();
-    alcoholWin.setBeforeMinutes(720);
-    alcoholWin.setAfterMinutes(720);
-
-    // 카페인 권고
-    InteractionResponse.Beverage caffeine = new InteractionResponse.Beverage();
-    caffeine.setTarget("카페인");
-    caffeine.setRecommendation("복용 전후 6시간 카페인 섭취 자제");
-    caffeine.setSafeWindow(caffeineWin);
-
-    // 알코올 권고
-    InteractionResponse.Beverage alcohol = new InteractionResponse.Beverage();
-    alcohol.setTarget("알코올");
-    alcohol.setRecommendation("복용 전후 12시간 음주 금지");
-    alcohol.setSafeWindow(alcoholWin);
-
-    InteractionResponse.Interactions inter = new InteractionResponse.Interactions();
-    inter.setBeverage(java.util.List.of(caffeine, alcohol));
-
-    InteractionResponse res = new InteractionResponse();
-    res.setDrugId(drug.getId());
-    res.setInteractions(inter);
-    return res;
-}
 }
 
 

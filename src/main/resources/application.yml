@@ -57,3 +57,10 @@ springdoc:
     try-it-out-enabled: true
   api-docs:
     path: /api-docs
+
+external:
+  mfds:
+    # 식약처 e약은요 OpenAPI 기본 URL
+    base-url: https://apis.data.go.kr/1471000
+    # 실행 환경에서 반드시 MFDS_SERVICE_KEY 환경 변수로 설정하세요.
+    service-key: ${MFDS_SERVICE_KEY:}

@@ -4,8 +4,9 @@ import com.pillmate.pillmate.DTO.BookmarkListResponse;
 import com.pillmate.pillmate.DTO.SuggestResponse;
 import com.pillmate.pillmate.DTO.SearchResponse;
 import com.pillmate.pillmate.DTO.BookmarkResponse;
-import com.pillmate.pillmate.DTO.DrugInfoResponse;
+import com.pillmate.pillmate.DTO.DrugDetailResponse;
 import com.pillmate.pillmate.DTO.InteractionResponse;
+import com.pillmate.pillmate.Service.DrugDetailService;
 import com.pillmate.pillmate.Service.BookmarkService;
 import com.pillmate.pillmate.DTO.ImageResponse;
 import com.pillmate.pillmate.Service.DrugService;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 public class DrugController {
 
     private final DrugService drugService;
+    private final DrugDetailService drugDetailService;
     private final BookmarkService bookmarkService;
 
     // ---- 약 명 자동완성 ----
@@ -52,8 +54,8 @@ public class DrugController {
     // ---- (상세) 북마크된 약물 기본 정보 조회 ----
     // GET /api/v1/drug/details/{drugId}
     @GetMapping("/details/{drugId}")
-    public ResponseEntity<DrugInfoResponse> info(@PathVariable String drugId) {
-        return ResponseEntity.ok(drugService.getDrugInfo(drugId));
+    public ResponseEntity<DrugDetailResponse> info(@PathVariable String drugId) {
+        return ResponseEntity.ok(drugDetailService.fetchDrugDetail(drugId));
     }
 
     // ---- (상세) 북마크된 약물 상호작용 정보 조회 ----
