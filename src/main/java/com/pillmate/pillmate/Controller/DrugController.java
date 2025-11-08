@@ -40,8 +40,8 @@ public class DrugController {
     @GetMapping("/search")
     public ResponseEntity<SearchResponse> search(
             @RequestParam("q") String q,
-            @RequestParam(value = "page", defaultValue = "0") Integer page,
-            @RequestParam(value = "size", defaultValue = "20") Integer size
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size
     ) {
         return ResponseEntity.ok(drugService.search(q, page, size));
     }

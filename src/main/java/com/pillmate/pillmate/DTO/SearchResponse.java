@@ -16,11 +16,9 @@ public class SearchResponse {
     @Getter @Setter
     @NoArgsConstructor @AllArgsConstructor @Builder
     public static class Item {
-        private String drugId;
-        private String name;
-        private List<String> ingredient; // 주성분 리스트
-        private String form;             // 제형
-        private String strength;         // 함량
+        private String drugId;       // 식약처 품목기준코드 (itemSeq)
+        private String name;         // 제품명
+        private String thumbnailUrl; // 함량
     }
 
     private Query query;
