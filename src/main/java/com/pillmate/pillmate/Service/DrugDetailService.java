@@ -17,6 +17,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.pillmate.pillmate.DTO.DrugDetailResponse;
+import com.pillmate.pillmate.Domain.DrugManualOverride;
+import com.pillmate.pillmate.Repository.DrugManualOverrideRepository;
 import com.pillmate.pillmate.Service.dto.MfdsEasyDrugResponse.MfdsEasyDrugItem;
 import com.pillmate.pillmate.Service.dto.MfdsIngredientResponse;
 import com.pillmate.pillmate.Service.dto.MfdsPermissionResponse;
@@ -33,6 +35,7 @@ public class DrugDetailService {
     private final MfdsDrugInfoClient mfdsDrugInfoClient;
     private final MfdsDrugIngredientClient mfdsDrugIngredientClient;
     private final MfdsDrugPermissionClient mfdsDrugPermissionClient;
+    private final DrugManualOverrideRepository drugManualOverrideRepository;
 
     public DrugDetailResponse fetchDrugDetail(String drugId) {
         MfdsEasyDrugItem item = mfdsDrugInfoClient.fetchEasyDrug(drugId)
@@ -48,6 +51,16 @@ public class DrugDetailService {
                 .filter(StringUtils::hasText)
                 .distinct()
                 .collect(Collectors.toList());
+
+        DrugManualOverride override = drugManualOverrideRepository.findById(drugId).orElse(null);
+        String resolvedStrength = firstNonBlank(
+                Optional.ofNullable(override).map(DrugManualOverride::getStrength).orElse(null),
+                strength
+        );
+        List<String> resolvedIngredients = Optional.ofNullable(override)
+                .map(DrugManualOverride::getIngredients)
+                .filter(list -> !list.isEmpty())
+                .orElse(ingredients);
 
         Optional<MfdsPermissionResponse.PermissionItem> permissionOpt = mfdsDrugPermissionClient.fetchPermission(drugId);
         String resolvedRxType = firstNonBlank(
@@ -71,8 +84,8 @@ public class DrugDetailService {
                 .name(item.getItemName())
                 .entpName(item.getEntpName())
                 .rxType(withFallback(resolvedRxType, "공식 데이터 미제공"))
-                .strength(withFallback(strength, "공식 데이터 미제공"))
-                .ingredients(ingredients.isEmpty() ? List.of("공식 데이터 미제공") : ingredients)
+                .strength(withFallback(resolvedStrength, "공식 데이터 미제공"))
+                .ingredients(resolvedIngredients.isEmpty() ? List.of("공식 데이터 미제공") : resolvedIngredients)
                 .efficacy(clean(item.getEfcyQesitm()))
                 .dosage(clean(item.getUseMethodQesitm()))
                 .cautions(clean(cautions))
