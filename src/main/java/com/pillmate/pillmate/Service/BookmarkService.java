@@ -3,10 +3,9 @@ package com.pillmate.pillmate.Service;
 import com.pillmate.pillmate.DTO.BookmarkDeleteResponse;
 import com.pillmate.pillmate.DTO.BookmarkListResponse;
 import com.pillmate.pillmate.DTO.BookmarkResponse;
+import com.pillmate.pillmate.DTO.DrugDetailResponse;
 import com.pillmate.pillmate.Domain.Bookmark;
-import com.pillmate.pillmate.Domain.Drug;
 import com.pillmate.pillmate.Repository.BookmarkRepository;
-import com.pillmate.pillmate.Repository.DrugRepository;
 import com.pillmate.pillmate.Util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
@@ -16,18 +15,15 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class BookmarkService {
 
     private final BookmarkRepository bookmarkRepository;
-    private final DrugRepository drugRepository;
-    
-
+    private final DrugDetailService drugDetailService; // 외부(식약처) 조회 진입점
 
     private static final DateTimeFormatter ISO_INSTANT =
             DateTimeFormatter.ISO_INSTANT.withZone(ZoneOffset.UTC);
@@ -35,10 +31,7 @@ public class BookmarkService {
     /** 북마크 추가 (멱등) */
     @Transactional
     public BookmarkResponse addBookmark(String drugId) {
-        Long userId = SecurityUtil.currentUserId(); //  정적 메서드로 통일
-
-        Drug drug = drugRepository.findById(drugId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 약물입니다. drugId=" + drugId));
+        Long userId = SecurityUtil.currentUserId();
 
         Bookmark bookmark = bookmarkRepository
                 .findByUserIdAndDrugId(userId, drugId)
@@ -50,52 +43,56 @@ public class BookmarkService {
                                 .build()
                 ));
 
+        // 이름/썸네일은 목록/상세 조회에서 외부 API로 채우므로 여기선 null 유지
         return BookmarkResponse.builder()
                 .drugId(drugId)
-                .name(drug.getName())
-                .thumbnailUrl(drug.getThumbnailUrl())
+                .name(null)
+                .thumbnailUrl(null)
                 .bookmarkedAt(ISO_INSTANT.format(bookmark.getBookmarkedAt()))
                 .build();
     }
 
-    /** 북마크 목록 조회 */
+    /** 북마크 목록 조회 (식약처 OPEN API 기반, 캐시 없음 버전) */
     @Transactional(readOnly = true)
     public BookmarkListResponse listBookmarks(Integer page, Integer size, String sort) {
-        Long userId = SecurityUtil.currentUserId(); //  정적 메서드로 통일
+        Long userId = SecurityUtil.currentUserId();
 
         int p = (page == null || page < 0) ? 0 : page;
         int s = (size == null || size <= 0 || size > 100) ? 20 : size;
 
         String sortKey = (sort == null || sort.isBlank()) ? "recent" : sort.trim().toLowerCase();
-        // 현재는 recent만 지원 → bookmarkedAt DESC
         Sort springSort = Sort.by(Sort.Direction.DESC, "bookmarkedAt");
-
         PageRequest pr = PageRequest.of(p, s, springSort);
+
         Page<Bookmark> pageResult = bookmarkRepository.findByUserId(userId, pr);
 
-        // Drug 정보를 배치로 끌어와서 이름/썸네일을 붙임
-        List<String> drugIds = pageResult.getContent().stream()
-                .map(Bookmark::getDrugId)
-                .toList();
+        List<BookmarkListResponse.Item> items = new ArrayList<>();
+        for (Bookmark b : pageResult.getContent()) {
+            String drugId = b.getDrugId();
+            String name = null;
+            String thumbnailUrl = null;
 
-        Map<String, Drug> drugMap = drugRepository.findAllById(drugIds).stream()
-                .collect(Collectors.toMap(Drug::getId, d -> d));
+            try {
+                // DrugDetailService의 실제 공개 메서드명을 사용하세요.
+                // 팀 코드 기준 일반적으로 getDetail(String) 입니다.
+                DrugDetailResponse detail = drugDetailService.fetchDrugDetail(drugId);
+                if (detail != null) {
+                    name = detail.getName();
+                    if (detail.getImages() != null && !detail.getImages().isEmpty()) {
+                        thumbnailUrl = detail.getImages().get(0);
+                    }
+                }
+            } catch (Exception ignore) {
+                // 외부 API 실패 시 해당 아이템만 빈 값으로 내려가도록 한다.
+            }
 
-        List<BookmarkListResponse.Item> items = pageResult.getContent().stream()
-                .map(b -> {
-                    Drug d = drugMap.get(b.getDrugId());
-                    return BookmarkListResponse.Item.builder()
-                            .drugId(b.getDrugId())
-                            .name(d != null ? d.getName() : null)
-                            .thumbnailUrl(d != null ? d.getThumbnailUrl() : null)
-                            // DTO가 OffsetDateTime이라면 변환, 문자열이면 ISO로 포맷하세요.
-                            // 예1) DTO가 OffsetDateTime:
-                            .bookmarkedAt(b.getBookmarkedAt().atOffset(ZoneOffset.UTC))
-                            // 예2) DTO가 String이라면 아래로 교체:
-                            // .bookmarkedAt(ISO_INSTANT.format(b.getBookmarkedAt()))
-                            .build();
-                })
-                .toList();
+            items.add(BookmarkListResponse.Item.builder()
+                    .drugId(drugId)
+                    .name(name)
+                    .thumbnailUrl(thumbnailUrl)
+                    .bookmarkedAt(ISO_INSTANT.format(b.getBookmarkedAt())) // 문자열 ISO-8601
+                    .build());
+        }
 
         return BookmarkListResponse.builder()
                 .page(p)
@@ -109,24 +106,17 @@ public class BookmarkService {
     /** 북마크 삭제 */
     @Transactional
     public BookmarkDeleteResponse removeBookmark(String drugId) {
-    // 인증된 사용자 ID 확보 (프로젝트에 맞춰 사용: getCurrentUserIdOrThrow / currentUserId 등)
         Long userId = SecurityUtil.currentUserId();
 
-    // 존재 체크
         Bookmark bookmark = bookmarkRepository.findByUserIdAndDrugId(userId, drugId)
                 .orElseThrow(() -> new IllegalArgumentException("Bookmark not found: " + drugId));
 
-    // 물리 삭제(soft delete 필요 시 엔티티 확장)
         bookmarkRepository.delete(bookmark);
 
         return BookmarkDeleteResponse.builder()
                 .deleted(true)
                 .drugId(drugId)
-                .deletedAt(ISO_INSTANT.format(java.time.Instant.now())) // 서비스 상단의 ISO_INSTANT 재사용
+                .deletedAt(ISO_INSTANT.format(Instant.now()))
                 .build();
     }
-
-
-
 }
-
