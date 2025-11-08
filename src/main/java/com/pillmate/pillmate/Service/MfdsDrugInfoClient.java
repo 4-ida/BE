@@ -23,18 +23,57 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class MfdsDrugInfoClient {
 
+    // 쉬운약 조회/검색 API 경로
     private static final String EASY_DRUG_PATH = "/DrbEasyDrugInfoService/getDrbEasyDrugList";
 
     private final RestTemplate restTemplate;
     private final MfdsApiProperties properties;
 
+    /** 제품명으로 검색 (페이지네이션) */
+    public Optional<MfdsEasyDrugResponse> searchByName(String itemName, int page, int size) {
+        int pageNo   = Math.max(1, page + 1);
+        int numOfRows = Math.max(1, size);
+
+        URI uri = UriComponentsBuilder
+                .fromUriString(properties.getBaseUrl()) // fromHttpUrl 경고 피하려면 fromUriString 사용
+                .path(EASY_DRUG_PATH)
+                .queryParam("serviceKey", properties.getServiceKey())
+                .queryParam("type", "json")
+                .queryParam("itemName", itemName)
+                .queryParam("pageNo", pageNo)
+                .queryParam("numOfRows", numOfRows)
+                .build(true)
+                .toUri();
+
+        try {
+            ResponseEntity<MfdsEasyDrugResponse> res =
+                    restTemplate.getForEntity(uri, MfdsEasyDrugResponse.class);
+
+            MfdsEasyDrugResponse body = res.getBody();
+            if (body == null || body.getBody() == null) {
+                log.warn("MFDS search empty body for q={}", itemName);
+                return Optional.empty();
+            }
+            if (!"00".equals(body.getHeader().getResultCode())) {
+                log.warn("MFDS search error: code={}, msg={}",
+                        body.getHeader().getResultCode(), body.getHeader().getResultMsg());
+                return Optional.empty();
+            }
+            return Optional.of(body);
+        } catch (Exception ex) {
+            log.error("MFDS search API failed for q={}", itemName, ex);
+            return Optional.empty();
+        }
+    }
+
+    /** 품목기준코드(=itemSeq)로 단건 조회 */
     public Optional<MfdsEasyDrugItem> fetchEasyDrug(String itemSeq) {
         if (!StringUtils.hasText(itemSeq)) {
             return Optional.empty();
         }
 
         URI uri = UriComponentsBuilder
-                .fromHttpUrl(properties.getBaseUrl())
+                .fromUriString(properties.getBaseUrl())
                 .path(EASY_DRUG_PATH)
                 .queryParam("serviceKey", properties.getServiceKey())
                 .queryParam("type", "json")
@@ -47,13 +86,12 @@ public class MfdsDrugInfoClient {
         try {
             ResponseEntity<MfdsEasyDrugResponse> response =
                     restTemplate.getForEntity(uri, MfdsEasyDrugResponse.class);
-            MfdsEasyDrugResponse body = response.getBody();
 
+            MfdsEasyDrugResponse body = response.getBody();
             if (body == null || body.getBody() == null) {
                 log.warn("MFDS easy drug response body is empty for itemSeq={}", itemSeq);
                 return Optional.empty();
             }
-
             if (!"00".equals(body.getHeader().getResultCode())) {
                 log.warn("MFDS easy drug response error. code={}, message={}",
                         body.getHeader().getResultCode(), body.getHeader().getResultMsg());

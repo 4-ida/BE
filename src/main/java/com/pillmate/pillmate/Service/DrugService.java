@@ -3,6 +3,7 @@ package com.pillmate.pillmate.Service;
 import com.pillmate.pillmate.Domain.Drug;
 import com.pillmate.pillmate.Repository.DrugRepository;
 import com.pillmate.pillmate.Service.dto.MfdsEasyDrugResponse;
+import com.pillmate.pillmate.Service.dto.MfdsEasyDrugResponse.MfdsEasyDrugItem;
 import com.pillmate.pillmate.DTO.SuggestResponse;
 import com.pillmate.pillmate.DTO.SearchResponse;
 import com.pillmate.pillmate.DTO.ImageResponse;
@@ -25,27 +26,58 @@ public class DrugService {
 
     /* -------------------- 약 명 자동완성 -------------------- */
     public SuggestResponse suggest(String rawQuery, Integer limit) {
-        String q = rawQuery == null ? "" : rawQuery.trim();
-        if (q.length() < 2) return SuggestResponse.empty(rawQuery);
-
+        // 0) 입력 전처리 및 검증
+        String q = (rawQuery == null) ? "" : rawQuery.trim();
+        if (!StringUtils.hasText(q)) {
+            return SuggestResponse.empty(rawQuery); 
+        }
+        String qNorm = textNormalizer.normalize(q);
+        if (qNorm.length() < 2) {
+            // 최소 길이 미만이면 빈 결과
+            return SuggestResponse.empty(rawQuery);
+        }
         int max = (limit == null || limit <= 0) ? 10 : Math.min(limit, 20);
 
-        List<Drug> exact  = drugRepository.findExact(q);
-        List<Drug> prefix = drugRepository.findPrefix(q);
-        List<Drug> sub    = drugRepository.findSubstring(q);
+        // 1) 식약처 OPEN API 호출 (쉬운약 검색)
+        List<MfdsEasyDrugItem> mfdsItems = mfdsDrugInfoClient
+                .searchByName(q, 0, max) // page=0, size=max
+                .map(res -> {
+                    var body = res.getBody();
+                    return (body == null || body.getItems() == null)
+                            ? List.<MfdsEasyDrugItem>of()
+                            : body.getItems();
+                })
+                .orElseGet(List::of);
 
-        LinkedHashMap<String, Drug> ordered = new LinkedHashMap<>();
-        for (Drug d : exact)  ordered.putIfAbsent(d.getId(), d);
-        for (Drug d : prefix) ordered.putIfAbsent(d.getId(), d);
-        for (Drug d : sub)    ordered.putIfAbsent(d.getId(), d);
+        // 2) 간단 유사도 정렬(정확==0, 접두==1, 포함==2, 기타==3)
+        Comparator<MfdsEasyDrugItem> bySimilarity = Comparator
+                .comparingInt((MfdsEasyDrugItem it) -> {
+                    String nameNorm = textNormalizer.normalize(nullToEmpty(it.getItemName()));
+                    if (nameNorm.equals(qNorm)) return 0;
+                    if (nameNorm.startsWith(qNorm)) return 1;
+                    if (nameNorm.contains(qNorm)) return 2;
+                    return 3;
+                })
+                .thenComparing(it -> nullToEmpty(it.getItemName()).length());
 
-        List<SuggestResponse.Suggestion> suggestions = new ArrayList<>();
-        for (Drug d : ordered.values()) {
-            if (suggestions.size() >= max) break;
-            suggestions.add(new SuggestResponse.Suggestion(d.getName(), d.getId()));
-        }
+        List<MfdsEasyDrugItem> sorted = mfdsItems.stream()
+                .sorted(bySimilarity)
+                .limit(max)
+                .toList();
+
+        // 3) SuggestResponse로 매핑 (label=itemName, value=itemSeq)
+        List<SuggestResponse.Suggestion> suggestions = sorted.stream()
+                .map(it -> new SuggestResponse.Suggestion(
+                        nullToEmpty(it.getItemName()),
+                        nullToEmpty(it.getItemSeq())
+                ))
+                .collect(Collectors.toList());
+
         return new SuggestResponse(rawQuery, suggestions);
     }
+
+    private String nullToEmpty(String s) { return (s == null) ? "" : s; }
+
 
     /* -------------------- 약 명 검색 -------------------- */
      /** 약 명 검색 (MFDS + 내부 캐시 혼합, 최소 필드 응답) */

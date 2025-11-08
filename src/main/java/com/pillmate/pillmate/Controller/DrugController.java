@@ -32,9 +32,8 @@ public class DrugController {
             @RequestParam("q") String q,
             @RequestParam(value = "limit", required = false) Integer limit
     ) {
-        return ResponseEntity.ok(drugService.suggest(q, limit));
+    return ResponseEntity.ok(drugService.suggest(q, limit));
     }
-
     // ---- 약 명 검색 ----
     // GET /api/v1/drug/search?q=타이레놀&page=0&size=20
     @GetMapping("/search")
