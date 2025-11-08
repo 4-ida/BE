@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.pillmate.pillmate.Service.dto.MfdsEasyDrugResponse.MfdsEasyDrugItem;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -22,6 +23,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class BookmarkService {
 
+    private final MfdsDrugInfoClient mfdsDrugInfoClient;
     private final BookmarkRepository bookmarkRepository;
     private final DrugDetailService drugDetailService; // 외부(식약처) 조회 진입점
 
