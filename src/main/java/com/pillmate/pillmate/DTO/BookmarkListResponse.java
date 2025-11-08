@@ -1,7 +1,6 @@
 package com.pillmate.pillmate.DTO;
 
 import lombok.*;
-import java.time.OffsetDateTime;
 import java.util.List;
 
 @Getter @Setter
@@ -20,6 +19,6 @@ public class BookmarkListResponse {
         private String drugId;
         private String name;
         private String thumbnailUrl;
-        private OffsetDateTime bookmarkedAt; // ISO-8601 "…Z"
+        private String bookmarkedAt; // ISO-8601 "…Z"
     }
 }
