@@ -21,6 +21,7 @@ import com.pillmate.pillmate.DTO.SignUpResponse;
 import com.pillmate.pillmate.DTO.EmailAvailabilityResponse;
 import com.pillmate.pillmate.Domain.User;
 import com.pillmate.pillmate.Service.UserService;
+import com.pillmate.pillmate.Service.UserService.LoginResult;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -120,7 +121,8 @@ public class AuthController {
     @PostMapping("/auth/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
         try {
-            User user = userService.login(request.getEmail(), request.getPassword());
+            LoginResult loginResult = userService.login(request.getEmail(), request.getPassword());
+            User user = loginResult.getUser();
             
             // JWT 토큰 생성
             String accessToken = jwtUtil.generateToken(user.getEmail());
@@ -138,6 +140,7 @@ public class AuthController {
                     .tokenType("Bearer")
                     .expiresInMillis(jwtUtil.getExpirationTimeMillis())
                     .user(userInfo)
+                    .firstLogin(loginResult.isFirstLogin())
                     .build();
             
             return ResponseEntity.ok(response);
