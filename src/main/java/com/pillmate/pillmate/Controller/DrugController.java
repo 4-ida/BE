@@ -10,6 +10,7 @@ import com.pillmate.pillmate.Service.DrugDetailService;
 import com.pillmate.pillmate.Service.BookmarkService;
 import com.pillmate.pillmate.DTO.ImageResponse;
 import com.pillmate.pillmate.Service.DrugService;
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -54,6 +55,7 @@ public class DrugController {
     // ---- (상세) 북마크된 약물 기본 정보 조회 ----
     // GET /api/v1/drug/details/{drugId}
     @GetMapping("/details/{drugId}")
+    @Operation(summary = "약품 상세 조회", description = "식약처 품목기준코드로 상세 정보를 조회합니다.")
     public ResponseEntity<DrugDetailResponse> info(@PathVariable String drugId) {
         return ResponseEntity.ok(drugDetailService.fetchDrugDetail(drugId));
     }
