@@ -2,6 +2,7 @@ package com.pillmate.pillmate.Service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import com.pillmate.pillmate.DTO.BasicProfileResponse;
 import com.pillmate.pillmate.DTO.BasicProfileUpdateRequest;
 import com.pillmate.pillmate.DTO.SignUpRequest;
@@ -12,6 +13,7 @@ import com.pillmate.pillmate.Domain.User;
 import com.pillmate.pillmate.Repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
+
 
 @Service
 @RequiredArgsConstructor
@@ -82,16 +84,17 @@ public class UserService {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
 
+        // DTO에 profileImage가 없으니까 여기서는 null 넣어서 그대로 두게 함
         user.updateProfile(
             req.getName(),
-            req.getProfileImage(),
+            null,  // 프로필 이미지는 이번 DTO에 없으니까 변경 안 함
             req.getCaffeineSensitivity(),
             req.getDrinkingPattern()
         );
 
-        userRepository.save(user);
         return UserProfileResponse.from(user);
     }
+
     // 기본 프로필 조회
     public BasicProfileResponse getBasicProfile(Long userId) {
         User user = userRepository.findById(userId)
@@ -112,7 +115,6 @@ public class UserService {
             req.getPreferredBeverageType()
         );
 
-        userRepository.save(user);
         return BasicProfileResponse.from(user);
     }
 }

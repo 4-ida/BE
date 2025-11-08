@@ -1,28 +1,41 @@
 package com.pillmate.pillmate.DTO;
 
 import com.pillmate.pillmate.Domain.User;
+import com.pillmate.pillmate.Domain.CaffeineSensitivity;
+import com.pillmate.pillmate.Domain.DrinkingPattern;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 
 @Getter
-@NoArgsConstructor
+@Builder
 public class UserProfileResponse {
 
-	private Long userId;
+	private Long id;
+
+	@Schema(description = "이름", example = "홍길동")
 	private String name;
+
+	@Schema(description = "이메일", example = "test@gmail.com")
 	private String email;
+
+	@Schema(description = "프로필 이미지 URL", example = "https://example.com/image.png")
 	private String profileImage;
-	private String caffeineSensitivity;
-	private String drinkingPattern;
+
+	@Schema(description = "카페인 민감도", example = "NORMAL", allowableValues = {"WEAK","NORMAL","STRONG"})
+	private CaffeineSensitivity caffeineSensitivity;
+
+	@Schema(description = "음주 패턴", example = "SOMETIMES", allowableValues = {"NONE","SOMETIMES","OFTEN"})
+	private DrinkingPattern drinkingPattern;
 
 	public static UserProfileResponse from(User user) {
-		UserProfileResponse dto = new UserProfileResponse();
-		dto.userId = user.getId();
-		dto.name = user.getName();
-		dto.email = user.getEmail();
-		dto.profileImage = user.getProfileImage();
-		dto.caffeineSensitivity = user.getCaffeineSensitivity();
-		dto.drinkingPattern = user.getDrinkingPattern();
-		return dto;
+		return UserProfileResponse.builder()
+			.id(user.getId())
+			.name(user.getName())
+			.email(user.getEmail())
+			.profileImage(user.getProfileImage())
+			.caffeineSensitivity(user.getCaffeineSensitivity())
+			.drinkingPattern(user.getDrinkingPattern())
+			.build();
 	}
 }

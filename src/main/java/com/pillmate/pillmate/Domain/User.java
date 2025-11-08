@@ -45,11 +45,13 @@ public class User {
     @Column(length = 255)
     private String profileImage;
 
+    @Enumerated(EnumType.STRING)
     @Column(length = 20)
-    private String caffeineSensitivity;
+    private CaffeineSensitivity caffeineSensitivity;
 
+    @Enumerated(EnumType.STRING)
     @Column(length = 20)
-    private String drinkingPattern;
+    private DrinkingPattern drinkingPattern;
 
     private Double defaultCaffeineAmount;
 
@@ -101,7 +103,10 @@ public class User {
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
         return encoder.matches(rawPassword, this.password);
     }
-    public void updateProfile(String name, String profileImage, String caffeineSensitivity, String drinkingPattern) {
+    public void updateProfile(String name,
+        String profileImage,
+        CaffeineSensitivity caffeineSensitivity,
+        DrinkingPattern drinkingPattern) {
         if (name != null) this.name = name;
         if (profileImage != null) this.profileImage = profileImage;
         if (caffeineSensitivity != null) this.caffeineSensitivity = caffeineSensitivity;
