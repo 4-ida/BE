@@ -1,33 +1,30 @@
 package com.pillmate.pillmate.Service;
 
-import com.pillmate.pillmate.DTO.*;
-import com.pillmate.pillmate.Domain.*;
+import com.pillmate.pillmate.Domain.Intake;
+import com.pillmate.pillmate.Domain.IntakeType;
+import com.pillmate.pillmate.DTO.IntakeRequest;
+import com.pillmate.pillmate.DTO.CaffeineIntakeRequest;
+import com.pillmate.pillmate.DTO.AlcoholIntakeRequest;
+import com.pillmate.pillmate.DTO.IntakeResponse;
 import com.pillmate.pillmate.Repository.IntakeRepository;
-import com.pillmate.pillmate.Repository.UserIntakeSensitivityRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class IntakeService {
 
 	private final IntakeRepository intakeRepository;
-	private final UserIntakeSensitivityRepository userIntakeSensitivityRepository;
-
-	private static final DateTimeFormatter TIME_FMT =
-		DateTimeFormatter.ofPattern("yyyy-MM-dd:HH-mm");
 
 	public IntakeResponse create(IntakeRequest req) {
 		Intake intake = Intake.builder()
 			.userId(req.getUserId())
 			.beverageName(req.getBeverageName())
 			.amount(req.getAmount())
-			.intakeType(IntakeType.valueOf(req.getIntakeType()))
+			.intakeType(IntakeType.valueOf(req.getIntakeType())) // 문자열 -> Enum
 			.createdAt(LocalDateTime.now())
 			.build();
 
@@ -49,8 +46,10 @@ public class IntakeService {
 
 	public IntakeResponse updateByUser(Long userId, IntakeRequest req) {
 		List<Intake> list = intakeRepository.findByUserId(userId);
-		if (list.isEmpty()) throw new IllegalArgumentException("해당 유저의 섭취 로그가 없습니다.");
-
+		if (list.isEmpty()) {
+			throw new IllegalArgumentException("해당 유저의 섭취 로그가 없습니다.");
+		}
+		// 단순하게 첫 번째 로그만 수정하는 예시
 		Intake intake = list.get(0);
 		intake.setBeverageName(req.getBeverageName());
 		intake.setAmount(req.getAmount());
@@ -71,100 +70,67 @@ public class IntakeService {
 	public void deleteByUser(Long userId) {
 		intakeRepository.deleteByUserId(userId);
 	}
+	// ===========================
+	// 카페인 전용 섭취 등록
+	// ===========================
+	public IntakeResponse createCaffeineIntake(CaffeineIntakeRequest req) {
 
-	public SensitivityUpdateResponse updateSensitivity(SensitivityUpdateRequest req) {
-		IntakeType intakeType = IntakeType.valueOf(req.getIntakeType());
-		SensitivityLevel level = SensitivityLevel.valueOf(req.getSensitivityLevel());
-
-		double halfLife = mapHalfLifeHours(intakeType, level);
-		LocalDateTime now = LocalDateTime.now();
-
-		UserIntakeSensitivity entity = userIntakeSensitivityRepository
-			.findByUserIdAndIntakeType(req.getUserId(), intakeType)
-			.orElse(UserIntakeSensitivity.builder()
-				.userId(req.getUserId())
-				.intakeType(intakeType)
-				.build());
-
-		entity.setSensitivityLevel(level);
-		entity.setHalfLifeHours(halfLife);
-		entity.setUpdatedAt(now);
-
-		UserIntakeSensitivity saved = userIntakeSensitivityRepository.save(entity);
-
-		return new SensitivityUpdateResponse(
-			saved.getUserId(),
-			saved.getIntakeType().name(),
-			saved.getSensitivityLevel().name(),
-			saved.getHalfLifeHours(),
-			now.format(TIME_FMT)
-		);
-	}
-
-	private double mapHalfLifeHours(IntakeType intakeType, SensitivityLevel level) {
-		if (intakeType == IntakeType.CAFFEINE) {
-			return switch (level) {
-				case WEAK -> 3.0;
-				case MEDIUM -> 5.0;
-				case STRONG -> 8.0;
-			};
-		} else {
-			return switch (level) {
-				case WEAK -> 3.0;
-				case MEDIUM -> 6.0;
-				case STRONG -> 9.0;
-			};
+		double finalAmount = req.getCaffeineMg();
+		if (req.getIntakeRatio() != null) {
+			finalAmount *= (req.getIntakeRatio() / 100.0);
 		}
-	}
 
-	public IntakeResidualResponse getResidualByIntakeId(Long intakeId) {
-		Intake intake = intakeRepository.findById(intakeId)
-			.orElseThrow(() -> new IllegalArgumentException("섭취 기록을 찾을 수 없습니다."));
+		Intake intake = Intake.builder()
+			.userId(req.getUserId())
+			.beverageName(req.getBeverageName())
+			.amount(finalAmount)
+			.intakeType(IntakeType.CAFFEINE)   // ← 고정 상수로 지정
+			.createdAt(req.getIntakeAt() != null ? req.getIntakeAt() : LocalDateTime.now())
+			.build();
 
-		Long userId = intake.getUserId();
-		IntakeType intakeType = intake.getIntakeType();
+		intakeRepository.save(intake);
 
-		UserIntakeSensitivity sensitivity = userIntakeSensitivityRepository
-			.findByUserIdAndIntakeType(userId, intakeType)
-			.orElseThrow(() -> new IllegalStateException("민감도 설정이 없습니다."));
-
-		double halfLife = sensitivity.getHalfLifeHours();
-		double original = intake.getAmount();
-
-		LocalDateTime now = LocalDateTime.now();
-		LocalDateTime created = intake.getCreatedAt();
-
-		double hoursPassed = Duration.between(created, now).toMinutes() / 60.0;
-		double remaining = original * Math.pow(0.5, hoursPassed / halfLife);
-
-		LocalDateTime estimatedZeroAt = created.plusHours((long) (halfLife * 5));
-
-		Map<String, Object> assumptions = new HashMap<>();
-		assumptions.put("halfLifeHours", halfLife);
-		assumptions.put("hoursPassed", hoursPassed);
-
-		return new IntakeResidualResponse(
+		// getIntakeType() 대신, 그냥 우리가 넣은 값 그대로 전달
+		return new IntakeResponse(
 			intake.getIntakeId(),
-			intakeType.name(),
-			original,
-			remaining,
-			estimatedZeroAt.format(TIME_FMT),
-			assumptions,
-			now.format(TIME_FMT)
+			intake.getUserId(),
+			intake.getBeverageName(),
+			intake.getAmount(),
+			IntakeType.CAFFEINE.name(),
+			intake.getCreatedAt()
 		);
+
 	}
 
-	public MedicationRiskResponse updateMedicationRisk(MedicationRiskRequest req) {
-		if (req.getIntakeTypes() == null || req.getIntakeTypes().isEmpty()) {
-			return new MedicationRiskResponse(req.getUserId(), "LOW", LocalDateTime.now().format(TIME_FMT));
-		}
+	// ===========================
+	// 2️⃣ 알코올 전용 섭취 등록
+	// ===========================
+	public IntakeResponse createAlcoholIntake(AlcoholIntakeRequest req) {
 
-		boolean hasCaffeine = req.getIntakeTypes().contains("CAFFEINE");
-		boolean hasAlcohol = req.getIntakeTypes().contains("ALCOHOL");
+		double finalAmount = req.getVolumeMl() != null ? req.getVolumeMl() : 0.0;
 
-		String risk = (hasCaffeine && hasAlcohol) ? "HIGH"
-			: (hasAlcohol ? "MEDIUM" : "LOW");
+		Intake intake = Intake.builder()
+			.userId(req.getUserId())
+			.beverageName(req.getAlcoholType())
+			.amount(finalAmount)
+			.intakeType(IntakeType.ALCOHOL)
+			.createdAt(req.getIntakeAt() != null ? req.getIntakeAt() : LocalDateTime.now())
+			.build();
 
-		return new MedicationRiskResponse(req.getUserId(), risk, LocalDateTime.now().format(TIME_FMT));
+		intakeRepository.save(intake);
+
+		return new IntakeResponse(
+			intake.getIntakeId(),
+			intake.getUserId(),
+			intake.getBeverageName(),
+			intake.getAmount(),
+			IntakeType.CAFFEINE.name(),
+			intake.getCreatedAt()
+		);
+
 	}
+
+
+
+
 }
