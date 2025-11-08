@@ -7,6 +7,7 @@ import com.pillmate.pillmate.DTO.BasicProfileUpdateRequest;
 import com.pillmate.pillmate.DTO.SignUpRequest;
 import com.pillmate.pillmate.DTO.UserProfileResponse;
 import com.pillmate.pillmate.DTO.UserProfileUpdateRequest;
+import com.pillmate.pillmate.Domain.AuthProvider;
 import com.pillmate.pillmate.Domain.User;
 import com.pillmate.pillmate.Repository.UserRepository;
 
@@ -37,6 +38,11 @@ public class UserService {
                 .name(request.getName())
                 .email(request.getEmail())
                 .password("") // 임시로 빈 문자열, 아래에서 암호화
+                .termsOfService(request.getConsent().getTermsOfService())
+                .privacyPolicy(request.getConsent().getPrivacyPolicy())
+                .dataUsage(request.getConsent().getDataUsage())
+                .provider(AuthProvider.LOCAL)
+                .providerId(request.getEmail())
                 .build();
         
         // 비밀번호 암호화
