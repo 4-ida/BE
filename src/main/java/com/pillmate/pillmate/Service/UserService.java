@@ -16,6 +16,8 @@ import com.pillmate.pillmate.Domain.AuthProvider;
 import com.pillmate.pillmate.Domain.User;
 import com.pillmate.pillmate.Repository.UserRepository;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 
@@ -71,7 +73,8 @@ public class UserService {
     }
     
     // 로그인
-    public User login(String email, String password) {
+    @Transactional
+    public LoginResult login(String email, String password) {
         User user = findByEmail(email);
         
         // 비밀번호 검증
@@ -79,7 +82,15 @@ public class UserService {
             throw new IllegalArgumentException("비밀번호가 일치하지 않습니다");
         }
         
-        return user;
+        boolean firstLogin = user.markLogin();
+        return new LoginResult(user, firstLogin);
+    }
+    
+    @Transactional
+    public boolean markLogin(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
+        return user.markLogin();
     }
     
     // 이메일로 사용자 찾기
@@ -132,5 +143,12 @@ public class UserService {
         );
 
         return BasicProfileResponse.from(user);
+    }
+
+    @Getter
+    @AllArgsConstructor
+    public static class LoginResult {
+        private final User user;
+        private final boolean firstLogin;
     }
 }

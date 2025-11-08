@@ -15,6 +15,7 @@ public class LoginResponse {
     private String tokenType;
     private Long expiresInMillis;
     private UserInfo user;
+    private boolean firstLogin;
     
     @Getter
     @Builder

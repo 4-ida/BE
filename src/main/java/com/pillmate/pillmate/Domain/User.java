@@ -92,6 +92,13 @@ public class User {
     @Column(nullable = false, columnDefinition = "DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")
     private LocalDateTime updatedAt;
 
+    @Column(columnDefinition = "DATETIME")
+    private LocalDateTime lastLoginAt;
+
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "INT DEFAULT 0")
+    private Integer loginCount = 0;
+
     // 비밀번호 암호화 메서드
     public void encodePassword(String rawPassword) {
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
@@ -130,6 +137,17 @@ public class User {
         user.termsOfService = true;  // 소셜 로그인 시 약관 동의로 간주
         user.privacyPolicy = true;
         user.dataUsage = false;  // 선택 약관은 false
+        user.loginCount = 0;
         return user;
+    }
+
+    public boolean markLogin() {
+        boolean isFirst = loginCount == null || loginCount == 0;
+        if (loginCount == null) {
+            loginCount = 0;
+        }
+        loginCount += 1;
+        lastLoginAt = LocalDateTime.now();
+        return isFirst;
     }
 }
