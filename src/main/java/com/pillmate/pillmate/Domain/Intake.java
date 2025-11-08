@@ -27,4 +27,7 @@ public class Intake {
 	private IntakeType intakeType;  // "CAFFEINE" 이런 거
 
 	private LocalDateTime createdAt;
+	public IntakeType getIntakeType() {
+		return this.intakeType;
+	}
 }
