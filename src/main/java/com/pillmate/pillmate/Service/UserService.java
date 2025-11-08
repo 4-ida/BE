@@ -1,7 +1,11 @@
 package com.pillmate.pillmate.Service;
 
+import java.util.regex.Pattern;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.pillmate.pillmate.DTO.BasicProfileResponse;
 import com.pillmate.pillmate.DTO.BasicProfileUpdateRequest;
@@ -21,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 public class UserService {
     
     private final UserRepository userRepository;
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
     
     // 회원가입
     @Transactional
@@ -52,6 +57,17 @@ public class UserService {
         
         // 저장
         return userRepository.save(user);
+    }
+    
+    public boolean checkEmailAvailability(String email) {
+        String normalized = email == null ? null : email.trim();
+        if (normalized == null || normalized.isBlank() || !EMAIL_PATTERN.matcher(normalized).matches()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "유효하지 않은 이메일 형식입니다.");
+        }
+        if (userRepository.existsByEmail(normalized)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다.");
+        }
+        return true;
     }
     
     // 로그인
