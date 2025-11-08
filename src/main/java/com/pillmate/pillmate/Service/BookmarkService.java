@@ -1,5 +1,6 @@
 package com.pillmate.pillmate.Service;
 
+import com.pillmate.pillmate.DTO.BookmarkDeleteResponse;
 import com.pillmate.pillmate.DTO.BookmarkListResponse;
 import com.pillmate.pillmate.DTO.BookmarkResponse;
 import com.pillmate.pillmate.Domain.Bookmark;
@@ -25,6 +26,8 @@ public class BookmarkService {
 
     private final BookmarkRepository bookmarkRepository;
     private final DrugRepository drugRepository;
+    
+
 
     private static final DateTimeFormatter ISO_INSTANT =
             DateTimeFormatter.ISO_INSTANT.withZone(ZoneOffset.UTC);
@@ -70,7 +73,7 @@ public class BookmarkService {
         PageRequest pr = PageRequest.of(p, s, springSort);
         Page<Bookmark> pageResult = bookmarkRepository.findByUserId(userId, pr);
 
-        // ⭐ Drug 정보를 배치로 끌어와서 이름/썸네일을 붙임
+        // Drug 정보를 배치로 끌어와서 이름/썸네일을 붙임
         List<String> drugIds = pageResult.getContent().stream()
                 .map(Bookmark::getDrugId)
                 .toList();
@@ -102,5 +105,28 @@ public class BookmarkService {
                 .items(items)
                 .build();
     }
+
+    /** 북마크 삭제 */
+    @Transactional
+    public BookmarkDeleteResponse removeBookmark(String drugId) {
+    // 인증된 사용자 ID 확보 (프로젝트에 맞춰 사용: getCurrentUserIdOrThrow / currentUserId 등)
+        Long userId = SecurityUtil.currentUserId();
+
+    // 존재 체크
+        Bookmark bookmark = bookmarkRepository.findByUserIdAndDrugId(userId, drugId)
+                .orElseThrow(() -> new IllegalArgumentException("Bookmark not found: " + drugId));
+
+    // 물리 삭제(soft delete 필요 시 엔티티 확장)
+        bookmarkRepository.delete(bookmark);
+
+        return BookmarkDeleteResponse.builder()
+                .deleted(true)
+                .drugId(drugId)
+                .deletedAt(ISO_INSTANT.format(java.time.Instant.now())) // 서비스 상단의 ISO_INSTANT 재사용
+                .build();
+    }
+
+
+
 }
 

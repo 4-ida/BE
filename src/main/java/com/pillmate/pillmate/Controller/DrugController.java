@@ -1,5 +1,6 @@
 package com.pillmate.pillmate.Controller;
 
+import com.pillmate.pillmate.DTO.BookmarkDeleteResponse;
 import com.pillmate.pillmate.DTO.BookmarkListResponse;
 import com.pillmate.pillmate.DTO.SuggestResponse;
 import com.pillmate.pillmate.DTO.SearchResponse;
@@ -82,5 +83,10 @@ public class DrugController {
         return ResponseEntity.ok(bookmarkService.listBookmarks(page, size, sort));
     }
 
+    //북마크삭제 DELETE /api/v1/drug/bookmarks/{drugId}
+    @DeleteMapping("/bookmarks/{drugId}")
+    public ResponseEntity<BookmarkDeleteResponse> deleteBookmark(@PathVariable String drugId) {
+        return ResponseEntity.ok(bookmarkService.removeBookmark(drugId));
+    }
 }
 
