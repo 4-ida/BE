@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -36,6 +37,10 @@ public class ScheduleRequest {
     @Schema(description = "사용자 메모", example = "식후 30분")
     private String memo;
     
+    @Valid
+    @Schema(description = "알림 설정")
+    private AlarmSettings alarm;
+    
     @Schema(description = "계획 상태", example = "SCHEDULED", allowableValues = {"SCHEDULED", "CANCELLED"})
     private String plan;
     
@@ -50,5 +55,14 @@ public class ScheduleRequest {
     @Schema(description = "복용 종료일", example = "2025-10-15", required = true)
     private LocalDate endDate;
     
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "알림 설정")
+    public static class AlarmSettings {
+        @Schema(description = "알림 활성화 여부", example = "true")
+        private Boolean enabled;
+    }
 }
 

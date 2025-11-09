@@ -44,6 +44,9 @@ public class ScheduleResponse {
     @Schema(description = "복용 상태", example = "TAKEN", allowableValues = {"TAKEN", "MISSED"})
     private String status;
     
+    @Schema(description = "알림 설정")
+    private AlarmSettings alarm;
+    
     @JsonIgnore
     @Schema(description = "내부 일정 상태", hidden = true)
     private ScheduleStatus internalStatus;
@@ -72,10 +75,23 @@ public class ScheduleResponse {
                 .memo(schedule.getMemo())
                 .plan(resolvedPlan)
                 .status(resolvedStatus)
+                .alarm(AlarmSettings.builder()
+                        .enabled(schedule.getAlarmEnabled())
+                        .build())
                 .internalStatus(currentStatus)
                 .startDate(schedule.getStartDate())
                 .endDate(schedule.getEndDate())
                 .build();
+    }
+    
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "알림 설정")
+    public static class AlarmSettings {
+        @Schema(description = "알림 활성화 여부", example = "true")
+        private Boolean enabled;
     }
 }
 

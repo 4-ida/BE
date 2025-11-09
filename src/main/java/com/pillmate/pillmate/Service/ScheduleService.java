@@ -43,6 +43,7 @@ public class ScheduleService {
         
         DrugDetailResponse drugDetail = fetchDrugDetailOrThrow(request.getDrugId());
         String resolvedDrugName = resolveDrugName(request, drugDetail);
+        boolean alarmEnabled = resolveAlarmEnabled(request);
         
         ScheduleStatus resolvedStatus = resolveStatus(request);
 
@@ -54,7 +55,7 @@ public class ScheduleService {
                 .dose(request.getDose())
                 .alarmAt(request.getDate())
                 .memo(request.getMemo())
-                .alarmEnabled(Boolean.FALSE)
+                .alarmEnabled(alarmEnabled)
                 .repeatRule(null)
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
@@ -234,6 +235,13 @@ public class ScheduleService {
         }
 
         return baseStatus;
+    }
+
+    private boolean resolveAlarmEnabled(ScheduleRequest request) {
+        if (request.getAlarm() == null || request.getAlarm().getEnabled() == null) {
+            return false;
+        }
+        return request.getAlarm().getEnabled();
     }
 
     private DrugDetailResponse fetchDrugDetailOrThrow(Long drugId) {
