@@ -46,27 +46,7 @@ public class DrugController {
         return ResponseEntity.ok(drugService.search(q, page, size));
     }
 
-    // ---- (상세) 북마크된 약물 이미지 조회 ----
-    // GET /api/v1/drug/details/{drugId}/images
-    @GetMapping("/details/{drugId}/images")
-    public ResponseEntity<ImageResponse> images(@PathVariable String drugId) {
-        return ResponseEntity.ok(drugService.getDrugImages(drugId));
-    }
 
-    // ---- (상세) 북마크된 약물 기본 정보 조회 ----
-    // GET /api/v1/drug/details/{drugId}
-    @GetMapping("/details/{drugId}")
-    @Operation(summary = "약품 상세 조회", description = "식약처 품목기준코드로 상세 정보를 조회합니다.")
-    public ResponseEntity<DrugDetailResponse> info(@PathVariable String drugId) {
-        return ResponseEntity.ok(drugDetailService.fetchDrugDetail(drugId));
-    }
-
-    // ---- (상세) 북마크된 약물 상호작용 정보 조회 ----
-    // GET /api/v1/drug/details/{drugId}/interactions
-    @GetMapping("/details/{drugId}/interactions")
-    public ResponseEntity<InteractionResponse> interactions(@PathVariable String drugId) {
-        return ResponseEntity.ok(drugService.getDrugInteractions(drugId));
-    }
     //북마크추가  POST /api/v1/drug/bookmarks/{drugId}
     @PostMapping("/bookmarks/{drugId}")
     public ResponseEntity<BookmarkResponse> addBookmark(@PathVariable String drugId) {

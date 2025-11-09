@@ -6,8 +6,6 @@ import com.pillmate.pillmate.Service.dto.MfdsEasyDrugResponse;
 import com.pillmate.pillmate.Service.dto.MfdsEasyDrugResponse.MfdsEasyDrugItem;
 import com.pillmate.pillmate.DTO.SuggestResponse;
 import com.pillmate.pillmate.DTO.SearchResponse;
-import com.pillmate.pillmate.DTO.ImageResponse;
-import com.pillmate.pillmate.DTO.InteractionResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.PageRequest;
@@ -171,72 +169,6 @@ public class DrugService {
         if (n.contains(" " + qNorm)) return 1;
         if (n.contains(qNorm)) return 2;
         return 3;
-    }
-
-
-    /* ==================== [추가] 상세 2종 ==================== */
-
-    // (1) 이미지 조회
-    public ImageResponse getDrugImages(String drugId) {
-        Drug drug = drugRepository.findById(drugId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 약물입니다."));
-
-        // CDN 규칙(임시): front/back 없으면 썸네일/백 이미지로 구성
-        String baseId = drug.getId(); // DRUG-000123
-        String front = (drug.getThumbnailUrl() != null && !drug.getThumbnailUrl().isBlank())
-                ? drug.getThumbnailUrl()
-                : "https://cdn.pillmate.com/img/" + baseId + "-front.png";
-        String back  = "https://cdn.pillmate.com/img/" + baseId + "-back.png";
-
-        List<ImageResponse.Image> imgs = List.of(
-                ImageResponse.Image.builder().type("front").url(front).build(),
-                ImageResponse.Image.builder().type("back").url(back).build()
-        );
-
-        // meta는 추후 테이블 생기면 실제 값으로 교체
-        ImageResponse.Meta meta = ImageResponse.Meta.builder()
-                .color("white")
-                .shape("원형")
-                .imprint(null) // 각인 데이터가 없으므로 일단 null
-                .build();
-
-        return ImageResponse.builder()
-                .drugId(drugId)
-                .images(imgs)
-                .meta(meta)
-                .build();
-    }
-
-    // (2) 상호작용 조회
-    public InteractionResponse getDrugInteractions(String drugId) {
-        Drug drug = drugRepository.findById(drugId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 약물입니다."));
-
-        InteractionResponse.SafeWindow caffeineWin = new InteractionResponse.SafeWindow();
-        caffeineWin.setBeforeMinutes(360);
-        caffeineWin.setAfterMinutes(360);
-
-        InteractionResponse.SafeWindow alcoholWin = new InteractionResponse.SafeWindow();
-        alcoholWin.setBeforeMinutes(720);
-        alcoholWin.setAfterMinutes(720);
-
-        InteractionResponse.Beverage caffeine = new InteractionResponse.Beverage();
-        caffeine.setTarget("카페인");
-        caffeine.setRecommendation("복용 전후 6시간 카페인 섭취 자제");
-        caffeine.setSafeWindow(caffeineWin);
-
-        InteractionResponse.Beverage alcohol = new InteractionResponse.Beverage();
-        alcohol.setTarget("알코올");
-        alcohol.setRecommendation("복용 전후 12시간 음주 금지");
-        alcohol.setSafeWindow(alcoholWin);
-
-        InteractionResponse.Interactions inter = new InteractionResponse.Interactions();
-        inter.setBeverage(java.util.List.of(caffeine, alcohol));
-
-        InteractionResponse res = new InteractionResponse();
-        res.setDrugId(drug.getId());
-        res.setInteractions(inter);
-        return res;
     }
 }
 
