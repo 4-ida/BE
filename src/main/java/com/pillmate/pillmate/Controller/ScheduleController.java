@@ -58,6 +58,7 @@ public class ScheduleController {
                         .date(scheduleResponse.getDate())
                         .plan(scheduleResponse.getPlan())
                         .status(scheduleResponse.getStatus())
+                        .alarm(scheduleResponse.getAlarm())
                         .startDate(scheduleResponse.getStartDate())
                         .endDate(scheduleResponse.getEndDate())
                         .build())
@@ -86,6 +87,7 @@ public class ScheduleController {
             private java.time.LocalDateTime date;
             private String plan;
             private String status;
+            private ScheduleResponse.AlarmSettings alarm;
             private java.time.LocalDate startDate;  // 복용 시작일
             private java.time.LocalDate endDate;    // 복용 종료일
         }
