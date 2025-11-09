@@ -2,6 +2,7 @@ package com.pillmate.pillmate.Service;
 
 import java.net.URI;
 import java.util.List;
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 import org.springframework.http.ResponseEntity;
@@ -42,7 +43,8 @@ public class MfdsDrugInfoClient {
                 .queryParam("itemName", itemName)
                 .queryParam("pageNo", pageNo)
                 .queryParam("numOfRows", numOfRows)
-                .build(true)
+                .build()
+                .encode(StandardCharsets.UTF_8)
                 .toUri();
 
         try {
@@ -80,7 +82,8 @@ public class MfdsDrugInfoClient {
                 .queryParam("itemSeq", itemSeq.trim())
                 .queryParam("pageNo", 1)
                 .queryParam("numOfRows", 1)
-                .build(true)
+                .build()
+                .encode(StandardCharsets.UTF_8)
                 .toUri();
 
         try {
