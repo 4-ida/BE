@@ -11,6 +11,7 @@ import com.pillmate.pillmate.DTO.ScheduleRequest;
 import com.pillmate.pillmate.DTO.ScheduleResponse;
 import com.pillmate.pillmate.DTO.ScheduleUpdateRequest;
 import com.pillmate.pillmate.DTO.ScheduleUpdateResponse;
+import com.pillmate.pillmate.DTO.DrugDetailResponse;
 import com.pillmate.pillmate.Repository.ScheduleRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -25,40 +26,39 @@ import java.util.stream.Collectors;
 public class ScheduleService {
     
     private final ScheduleRepository scheduleRepository;
+    private final DrugDetailService drugDetailService;
     
     @Transactional
-    public ScheduleResponse createSchedule(ScheduleRequest request) {
+    public ScheduleResponse createSchedule(Long userId, ScheduleRequest request) {
         // 복용 기간 검증
         if (request.getStartDate().isAfter(request.getEndDate())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "복용 시작일은 종료일보다 이전이어야 합니다");
         }
         
         // 알림 시각이 복용 기간 내에 있는지 검증
-        if (request.getAlarmAt().toLocalDate().isBefore(request.getStartDate()) ||
-            request.getAlarmAt().toLocalDate().isAfter(request.getEndDate())) {
+        if (request.getDate().toLocalDate().isBefore(request.getStartDate()) ||
+            request.getDate().toLocalDate().isAfter(request.getEndDate())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "알림 시각은 복용 기간 내에 있어야 합니다");
         }
         
-        // 완전 중복 체크: 같은 약물, 같은 알림 시각, 같은 기간인 경우만 막음
-        // (다른 약물을 같은 시간에 복용하는 것은 허용, 같은 약물을 같은 시간에 여러 번 복용하는 것도 허용)
+        DrugDetailResponse drugDetail = fetchDrugDetailOrThrow(request.getDrugId());
+        String resolvedDrugName = resolveDrugName(request, drugDetail);
         
-        // 약물 충돌 체크 제거: 같은 약물을 여러 번 등록할 수 있도록 허용
-        // (필요시 나중에 비즈니스 로직에 따라 추가할 수 있음)
-        
+        ScheduleStatus resolvedStatus = resolveStatus(request);
+
         // 일정 생성
         Schedule schedule = Schedule.builder()
-                .userId(request.getUserId())
+                .userId(userId)
                 .drugId(request.getDrugId())
+                .drugName(resolvedDrugName)
                 .dose(request.getDose())
-                .alarmAt(request.getAlarmAt())
+                .alarmAt(request.getDate())
                 .memo(request.getMemo())
-                .alarmEnabled(request.getAlarm() != null && 
-                             request.getAlarm().getEnabled() != null && 
-                             request.getAlarm().getEnabled())
-                .repeatRule(request.getRepeatRule())
+                .alarmEnabled(Boolean.FALSE)
+                .repeatRule(null)
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
-                .status(ScheduleStatus.SCHEDULED)
+                .status(resolvedStatus)
                 .build();
         
         Schedule savedSchedule = scheduleRepository.save(schedule);
@@ -209,6 +209,55 @@ public class ScheduleService {
         
         scheduleRepository.delete(schedule);
         return scheduleId;
+    }
+
+    private ScheduleStatus resolveStatus(ScheduleRequest request) {
+        ScheduleStatus baseStatus = ScheduleStatus.SCHEDULED;
+
+        if (request.getPlan() != null) {
+            String planValue = request.getPlan().trim().toUpperCase();
+            if (!planValue.equals(ScheduleStatus.SCHEDULED.name()) && !planValue.equals(ScheduleStatus.CANCELLED.name())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "plan 값은 SCHEDULED 또는 CANCELLED 이어야 합니다");
+            }
+            baseStatus = ScheduleStatus.valueOf(planValue);
+        }
+
+        if (request.getStatus() != null) {
+            String statusValue = request.getStatus().trim().toUpperCase();
+            if (!statusValue.equals(ScheduleStatus.TAKEN.name()) && !statusValue.equals(ScheduleStatus.MISSED.name())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "status 값은 TAKEN 또는 MISSED 이어야 합니다");
+            }
+            if (baseStatus == ScheduleStatus.CANCELLED) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "취소된 일정은 복용 상태를 설정할 수 없습니다");
+            }
+            baseStatus = ScheduleStatus.valueOf(statusValue);
+        }
+
+        return baseStatus;
+    }
+
+    private DrugDetailResponse fetchDrugDetailOrThrow(Long drugId) {
+        try {
+            return drugDetailService.fetchDrugDetail(String.valueOf(drugId));
+        } catch (ResponseStatusException ex) {
+            if (ex.getStatusCode() == HttpStatus.NOT_FOUND) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "식약처에서 해당 약품을 찾을 수 없습니다");
+            }
+            throw ex;
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "유효하지 않은 약품 ID입니다");
+        }
+    }
+
+    private String resolveDrugName(ScheduleRequest request, DrugDetailResponse drugDetail) {
+        String officialName = drugDetail.getName();
+        if (officialName != null && !officialName.isBlank()) {
+            return officialName;
+        }
+        if (request.getName() != null && !request.getName().isBlank()) {
+            return request.getName();
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "약품명이 비어 있습니다");
     }
 }
 

@@ -37,3 +37,10 @@ CREATE TABLE IF NOT EXISTS drug_manual_overrides (
     PRIMARY KEY (drug_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='식약처 API 보완용 약품 정보';
 
+-- 5. schedules 테이블 보강
+ALTER TABLE schedules 
+ADD COLUMN IF NOT EXISTS user_id BIGINT NOT NULL COMMENT '사용자 ID';
+
+ALTER TABLE schedules 
+ADD COLUMN IF NOT EXISTS drug_name VARCHAR(150) COMMENT '약품명';
+

@@ -18,6 +18,7 @@ import com.pillmate.pillmate.DTO.ScheduleResponse;
 import com.pillmate.pillmate.DTO.ScheduleUpdateRequest;
 import com.pillmate.pillmate.DTO.ScheduleUpdateResponse;
 import com.pillmate.pillmate.Service.ScheduleService;
+import com.pillmate.pillmate.Util.SecurityUtil;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -40,21 +41,23 @@ public class ScheduleController {
     @Operation(summary = "복약 일정 등록", description = "메인 캘린더에 새로운 복약 일정을 등록합니다.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "201", description = "복약 일정 등록 성공"),
-        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
-        @ApiResponse(responseCode = "409", description = "알림 시각 중복 또는 약물 충돌")
+        @ApiResponse(responseCode = "400", description = "잘못된 요청")
     })
     @PostMapping("/schedules")
     public ResponseEntity<ScheduleCreateResponse> createSchedule(@Valid @RequestBody ScheduleRequest request) {
-        ScheduleResponse scheduleResponse = scheduleService.createSchedule(request);
+        Long userId = SecurityUtil.currentUserId();
+        ScheduleResponse scheduleResponse = scheduleService.createSchedule(userId, request);
         
         ScheduleCreateResponse response = ScheduleCreateResponse.builder()
                 .message("복약 일정이 등록되었습니다.")
                 .data(ScheduleCreateResponse.ScheduleData.builder()
                         .scheduleId(scheduleResponse.getScheduleId())
                         .drugId(scheduleResponse.getDrugId())
+                        .name(scheduleResponse.getName())
                         .dose(scheduleResponse.getDose())
-                        .alarmAt(scheduleResponse.getAlarmAt())
-                        .status(scheduleResponse.getStatus().name())
+                        .date(scheduleResponse.getDate())
+                        .plan(scheduleResponse.getPlan())
+                        .status(scheduleResponse.getStatus())
                         .startDate(scheduleResponse.getStartDate())
                         .endDate(scheduleResponse.getEndDate())
                         .build())
@@ -78,8 +81,10 @@ public class ScheduleController {
         public static class ScheduleData {
             private Long scheduleId;
             private Long drugId;
+            private String name;
             private String dose;
-            private java.time.LocalDateTime alarmAt;
+            private java.time.LocalDateTime date;
+            private String plan;
             private String status;
             private java.time.LocalDate startDate;  // 복용 시작일
             private java.time.LocalDate endDate;    // 복용 종료일
