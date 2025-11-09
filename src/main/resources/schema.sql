@@ -17,7 +17,9 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS schedules (
     schedule_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL COMMENT '사용자 ID',
     drug_id BIGINT NOT NULL COMMENT '약품 ID',
+    drug_name VARCHAR(150) COMMENT '약품명',
     dose VARCHAR(100) NOT NULL COMMENT '복용량 또는 용법',
     alarm_at DATETIME NOT NULL COMMENT '알림 시각',
     memo TEXT COMMENT '사용자 메모',

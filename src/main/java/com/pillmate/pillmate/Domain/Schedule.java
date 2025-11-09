@@ -39,12 +39,15 @@ public class Schedule {
     
     @Column(nullable = false)
     private Long drugId;  // 약품 ID
+
+    @Column(length = 150)
+    private String drugName; // 약품명 (자동완성 결과)
     
     @Column(nullable = false, length = 100)
     private String dose;  // 복용량 또는 용법
     
     @Column(nullable = false)
-    private LocalDateTime alarmAt;  // 알림 시각
+    private LocalDateTime alarmAt;  // 복용 예정 시각
     
     @Column(columnDefinition = "TEXT")
     private String memo;  // 사용자 메모

@@ -3,6 +3,7 @@ package com.pillmate.pillmate.DTO;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pillmate.pillmate.Domain.Schedule;
 import com.pillmate.pillmate.Domain.ScheduleStatus;
 
@@ -25,20 +26,27 @@ public class ScheduleResponse {
     @Schema(description = "약품 ID", example = "12")
     private Long drugId;
     
-    @Schema(description = "약품명", example = "아모크라정")
-    private String drugName;
+    @Schema(description = "약품명", example = "타이레놀정500mg")
+    private String name;
     
     @Schema(description = "복용량", example = "1정")
     private String dose;
     
-    @Schema(description = "알림 시각", example = "2025-10-08T08:30:00")
-    private LocalDateTime alarmAt;
+    @Schema(description = "복용 예정 시각", example = "2025-10-08T08:30:00")
+    private LocalDateTime date;
     
     @Schema(description = "사용자 메모", example = "식후 30분")
     private String memo;
     
-    @Schema(description = "일정 상태", example = "SCHEDULED")
-    private ScheduleStatus status;
+    @Schema(description = "계획 상태", example = "SCHEDULED", allowableValues = {"SCHEDULED", "CANCELLED"})
+    private String plan;
+    
+    @Schema(description = "복용 상태", example = "TAKEN", allowableValues = {"TAKEN", "MISSED"})
+    private String status;
+    
+    @JsonIgnore
+    @Schema(description = "내부 일정 상태", hidden = true)
+    private ScheduleStatus internalStatus;
     
     @Schema(description = "복용 시작일", example = "2025-10-08")
     private LocalDate startDate;
@@ -47,14 +55,24 @@ public class ScheduleResponse {
     private LocalDate endDate;
     
     public static ScheduleResponse from(Schedule schedule) {
+        ScheduleStatus currentStatus = schedule.getStatus();
+        String resolvedPlan = currentStatus == ScheduleStatus.CANCELLED ? ScheduleStatus.CANCELLED.name() : ScheduleStatus.SCHEDULED.name();
+        String resolvedStatus = switch (currentStatus) {
+            case TAKEN -> ScheduleStatus.TAKEN.name();
+            case MISSED -> ScheduleStatus.MISSED.name();
+            default -> null;
+        };
+        
         return ScheduleResponse.builder()
                 .scheduleId(schedule.getScheduleId())
                 .drugId(schedule.getDrugId())
-                .drugName(null)  // TODO: Drug 엔티티와 조인하여 실제 약품명 조회
+                .name(schedule.getDrugName())
                 .dose(schedule.getDose())
-                .alarmAt(schedule.getAlarmAt())
+                .date(schedule.getAlarmAt())
                 .memo(schedule.getMemo())
-                .status(schedule.getStatus())
+                .plan(resolvedPlan)
+                .status(resolvedStatus)
+                .internalStatus(currentStatus)
                 .startDate(schedule.getStartDate())
                 .endDate(schedule.getEndDate())
                 .build();
