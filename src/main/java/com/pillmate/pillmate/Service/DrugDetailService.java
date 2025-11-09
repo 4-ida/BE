@@ -10,8 +10,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import com.pillmate.pillmate.Service.MfdsDrugInfoClient;
-
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.http.HttpStatus;
@@ -79,6 +77,10 @@ public class DrugDetailService {
         );
 
         Map<String, String> summary = buildCautionSummary(cautions);
+        if (override != null) {
+            applyCautionOverride(summary, "alcohol", override.getCautionAlcohol());
+            applyCautionOverride(summary, "caffeine", override.getCautionCaffeine());
+        }
 
         return DrugDetailResponse.builder()
                 .drugId(item.getItemSeq())
@@ -189,6 +191,13 @@ public class DrugDetailService {
             summary.put("caffeine", "카페인 함유 제품과 병용 시 주의하세요.");
         }
         return summary;
+    }
+
+    private void applyCautionOverride(Map<String, String> summary, String key, String overrideValue) {
+        if (!StringUtils.hasText(overrideValue)) {
+            return;
+        }
+        summary.put(key, overrideValue.trim());
     }
 
     private List<String> extractImages(String itemImage) {
