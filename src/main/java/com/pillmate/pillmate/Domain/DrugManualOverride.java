@@ -32,6 +32,12 @@ public class DrugManualOverride {
     @Column(name = "ingredients_csv", length = 1000)
     private String ingredientsCsv;
 
+    @Column(name = "caution_alcohol", length = 1000)
+    private String cautionAlcohol;
+
+    @Column(name = "caution_caffeine", length = 1000)
+    private String cautionCaffeine;
+
     public List<String> getIngredients() {
         if (!StringUtils.hasText(ingredientsCsv)) {
             return Collections.emptyList();

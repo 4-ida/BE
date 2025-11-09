@@ -31,6 +31,8 @@ CREATE TABLE IF NOT EXISTS drug_manual_overrides (
     drug_id VARCHAR(32) NOT NULL COMMENT '식약처 품목기준코드',
     strength VARCHAR(255) COMMENT '수동으로 정의한 함량 정보',
     ingredients_csv VARCHAR(1000) COMMENT '쉼표로 구분된 주요 성분 목록',
+    caution_alcohol VARCHAR(1000) COMMENT '음주 관련 주의사항 수동 요약',
+    caution_caffeine VARCHAR(1000) COMMENT '카페인 관련 주의사항 수동 요약',
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '최종 수정 시각',
     PRIMARY KEY (drug_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='식약처 API 보완용 약품 정보';
