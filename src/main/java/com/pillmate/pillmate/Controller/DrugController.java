@@ -27,6 +27,7 @@ public class DrugController {
 
     // ---- 약 명 자동완성 ----
     // GET /api/v1/drug/suggest?q=타이&limit=10
+    @Operation(summary = "약 명 자동완성", description = "입력 중인 약명 문자열(q)에 대해 자동완성 후보 목록을 제공합니다.")
     @GetMapping("/suggest")
     public ResponseEntity<SuggestResponse> suggest(
             @RequestParam("q") String q,
