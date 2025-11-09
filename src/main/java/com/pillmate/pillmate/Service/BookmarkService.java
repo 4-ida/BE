@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.pillmate.pillmate.Service.dto.MfdsEasyDrugResponse.MfdsEasyDrugItem;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -23,7 +22,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class BookmarkService {
 
-    private final MfdsDrugInfoClient mfdsDrugInfoClient;
     private final BookmarkRepository bookmarkRepository;
     private final DrugDetailService drugDetailService; // 외부(식약처) 조회 진입점
 
@@ -45,11 +43,8 @@ public class BookmarkService {
                                 .build()
                 ));
 
-        // 이름/썸네일은 목록/상세 조회에서 외부 API로 채우므로 여기선 null 유지
         return BookmarkResponse.builder()
                 .drugId(drugId)
-                .name(null)
-                .thumbnailUrl(null)
                 .bookmarkedAt(ISO_INSTANT.format(bookmark.getBookmarkedAt()))
                 .build();
     }

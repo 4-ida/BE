@@ -2,7 +2,7 @@ package com.pillmate.pillmate.Util;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
+import com.pillmate.pillmate.Security.CustomUserDetails;
 
 /**
  * JWT 인증 기반에서 현재 로그인 사용자의 식별자(userId)를 얻는 유틸.
@@ -21,18 +21,11 @@ public final class SecurityUtil {
         Object principal = auth.getPrincipal();
 
         // 1) 커스텀 UserDetails에 getId()가 있는 경우 (예시)
-        // if (principal instanceof CustomUserDetails cud) return cud.getId();
-
-        // 2) 기본: name을 Long으로 파싱
-        String name;
-        if (principal instanceof UserDetails ud) name = ud.getUsername();
-        else name = auth.getName();
-
-        try {
-            return Long.parseLong(name);
-        } catch (NumberFormatException e) {
-            // 팀 규약에 맞게 변경 필요할 수 있음
-            throw new IllegalStateException("Cannot resolve userId from principal name=" + name);
+        if (principal instanceof CustomUserDetails cud) {
+            return cud.getId();
         }
+
+        // 2) 기타 타입은 지원하지 않음
+        throw new IllegalStateException("Cannot resolve userId from principal type=" + principal.getClass().getName());
     }
 }
