@@ -104,5 +104,13 @@ public class Schedule {
     public void updateEndDate(LocalDate endDate) {
         this.endDate = endDate;
     }
+    
+    public void setDrugName(String drugName) {
+        this.drugName = drugName;
+    }
+    
+    public void setDrugId(Long drugId) {
+        this.drugId = drugId;
+    }
 }
 

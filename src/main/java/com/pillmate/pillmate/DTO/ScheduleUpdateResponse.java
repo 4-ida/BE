@@ -2,7 +2,6 @@ package com.pillmate.pillmate.DTO;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -20,22 +19,45 @@ public class ScheduleUpdateResponse {
     @Schema(description = "일정 ID", example = "101")
     private Long scheduleId;
     
-    @Schema(description = "변경된 필드 리스트", example = "[\"status\", \"alarmAt\"]")
-    private List<String> updatedFields;
+    @Schema(description = "약품 ID", example = "12")
+    private Long drugId;
     
-    @Schema(description = "현재 상태", example = "TAKEN")
+    @Schema(description = "약품명", example = "타이레놀정500mg")
+    private String name;
+    
+    @Schema(description = "복용량", example = "1정")
+    private String dose;
+    
+    @Schema(description = "복용 예정 시각", example = "2025-10-08T09:00:00")
+    private LocalDateTime date;
+    
+    @Schema(description = "사용자 메모", example = "시간 조정")
+    private String memo;
+    
+    @Schema(description = "계획 상태", example = "SCHEDULED", allowableValues = {"SCHEDULED", "CANCELLED"})
+    private String plan;
+    
+    @Schema(description = "복용 상태", example = "TAKEN", allowableValues = {"TAKEN", "MISSED"})
     private String status;
     
-    @Schema(description = "변경된 알림 시각", example = "2025-10-08T09:00:00")
-    private LocalDateTime alarmAt;
-    
-    @Schema(description = "변경된 메모", example = "시간 조정")
-    private String memo;
+    @Schema(description = "알림 설정")
+    private AlarmSettings alarm;
     
     @Schema(description = "복용 시작일", example = "2025-10-08")
     private LocalDate startDate;
     
     @Schema(description = "복용 종료일", example = "2025-10-15")
     private LocalDate endDate;
+    
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "알림 설정")
+    public static class AlarmSettings {
+        @Schema(description = "알림 활성화 여부", example = "true")
+        private Boolean enabled;
+    }
 }
+
 
