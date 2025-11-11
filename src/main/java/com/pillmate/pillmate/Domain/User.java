@@ -43,7 +43,7 @@ public class User {
     @Column(nullable = false, length = 255)
     private String password;
 
-    @Column(length = 255)
+    @Column(length = 10000)
     private String profileImage;
 
     @Enumerated(EnumType.STRING)
