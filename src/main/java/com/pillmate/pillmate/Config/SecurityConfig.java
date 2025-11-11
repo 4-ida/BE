@@ -43,7 +43,8 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(authz -> authz
                 .requestMatchers("/api/auth/**").permitAll() // 인증 API 허용 (기존 경로)
-                .requestMatchers("/api/v1/signup", "/api/v1/signup/**", "/api/v1/auth/login").permitAll() // 회원가입, 이메일 확인, 로그인 허용
+                .requestMatchers("/api/v1/signup/**").permitAll() // 회원가입 및 이메일 중복 확인 허용
+                .requestMatchers("/api/v1/auth/login").permitAll() // 로그인 허용
                 .requestMatchers("/oauth2/**", "/login/**").permitAll() // OAuth2 소셜 로그인 관련 요청 허용
                 .requestMatchers("/swagger.html", "/swagger-ui/**", "/api-docs/**").permitAll() // Swagger 허용
                 .requestMatchers("/h2-console/**").permitAll() // H2 콘솔 허용 (개발용)
@@ -81,9 +82,11 @@ public class SecurityConfig {
         // 개발 및 프로덕션 환경 Origin 허용
         configuration.setAllowedOrigins(List.of(
             "http://localhost:3000", 
+            "http://localhost:5173",  // Vite 개발 서버
             "http://localhost:8080", 
             "http://127.0.0.1:8080", 
             "http://127.0.0.1:3000",
+            "http://127.0.0.1:5173",  // Vite 개발 서버
             "https://pillmate.lion.it.kr" // 프로덕션 도메인
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
