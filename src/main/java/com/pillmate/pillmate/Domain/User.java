@@ -42,6 +42,7 @@ public class User {
     
     @Column(nullable = false, length = 255)
     private String password;
+
     @Column(length = 255)
     private String profileImage;
 
