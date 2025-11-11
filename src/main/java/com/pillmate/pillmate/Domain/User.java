@@ -1,5 +1,7 @@
 package com.pillmate.pillmate.Domain;
 
+import java.time.LocalDateTime;
+
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -18,8 +20,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
@@ -130,7 +130,8 @@ public class User {
     // 소셜 로그인 사용자 생성 메서드
     public static User createSocialUser(String email, String name, AuthProvider provider, String providerId) {
         User user = new User();
-        user.email = email;
+        // 이메일 정규화 (trim, 소문자 변환)
+        user.email = email == null ? null : email.trim().toLowerCase();
         user.password = "oauth2"; // 소셜 로그인은 비밀번호 불필요
         user.name = name;
         user.provider = provider;

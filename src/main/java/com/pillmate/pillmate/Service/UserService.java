@@ -32,8 +32,20 @@ public class UserService {
     // 회원가입
     @Transactional
     public User signUp(SignUpRequest request) {
+        // 이메일 정규화 (trim, 소문자 변환)
+        String normalizedEmail = request.getEmail() == null ? null : request.getEmail().trim().toLowerCase();
+        
+        if (normalizedEmail == null || normalizedEmail.isBlank()) {
+            throw new IllegalArgumentException("이메일은 필수입니다");
+        }
+        
+        // 이메일 형식 검증
+        if (!EMAIL_PATTERN.matcher(normalizedEmail).matches()) {
+            throw new IllegalArgumentException("올바른 이메일 형식이 아닙니다");
+        }
+        
         // 이메일 중복 체크
-        if (userRepository.existsByEmail(request.getEmail())) {
+        if (userRepository.existsByEmail(normalizedEmail)) {
             throw new IllegalArgumentException("이미 존재하는 이메일입니다");
         }
         
@@ -45,13 +57,13 @@ public class UserService {
         // 사용자 생성 (약관 동의는 기본값 false)
         User user = User.builder()
                 .name(request.getName())
-                .email(request.getEmail())
+                .email(normalizedEmail)  // 정규화된 이메일 사용
                 .password("") // 임시로 빈 문자열, 아래에서 암호화
                 .termsOfService(false)
                 .privacyPolicy(false)
                 .dataUsage(false)
                 .provider(AuthProvider.LOCAL)
-                .providerId(request.getEmail())
+                .providerId(normalizedEmail)  // providerId도 정규화된 이메일 사용
                 .build();
         
         // 비밀번호 암호화
@@ -62,7 +74,8 @@ public class UserService {
     }
     
     public boolean checkEmailAvailability(String email) {
-        String normalized = email == null ? null : email.trim();
+        // 이메일 정규화 (trim, 소문자 변환)
+        String normalized = email == null ? null : email.trim().toLowerCase();
         if (normalized == null || normalized.isBlank() || !EMAIL_PATTERN.matcher(normalized).matches()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "유효하지 않은 이메일 형식입니다.");
         }
@@ -75,7 +88,9 @@ public class UserService {
     // 로그인
     @Transactional
     public LoginResult login(String email, String password) {
-        User user = findByEmail(email);
+        // 이메일 정규화 (trim, 소문자 변환)
+        String normalizedEmail = email == null ? null : email.trim().toLowerCase();
+        User user = findByEmail(normalizedEmail);
         
         // 비밀번호 검증
         if (!user.checkPassword(password)) {
@@ -95,7 +110,9 @@ public class UserService {
     
     // 이메일로 사용자 찾기
     public User findByEmail(String email) {
-        return userRepository.findByEmail(email)
+        // 이메일 정규화 (trim, 소문자 변환)
+        String normalizedEmail = email == null ? null : email.trim().toLowerCase();
+        return userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
     }
     // 프로필 조회

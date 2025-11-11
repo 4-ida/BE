@@ -1,6 +1,7 @@
 package com.pillmate.pillmate.DTO;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -16,6 +17,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)  // 알 수 없는 필드(consent 등) 무시
 @Schema(description = "회원가입 요청")
 public class SignUpRequest {
     
