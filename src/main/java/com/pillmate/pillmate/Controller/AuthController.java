@@ -129,6 +129,7 @@ public class AuthController {
             
             // 사용자 정보
             LoginResponse.UserInfo userInfo = LoginResponse.UserInfo.builder()
+                    .id(user.getId())
                     .email(user.getEmail())
                     .name(user.getName())
                     .build();
