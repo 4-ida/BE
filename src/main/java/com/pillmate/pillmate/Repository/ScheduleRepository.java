@@ -37,6 +37,8 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     
     // 사용자별 일정 개수 조회
     int countByUserId(Long userId);
+    
+    // 사용자, 약물, 상태로 일정 조회
+    List<Schedule> findByUserIdAndDrugIdAndStatus(Long userId, Long drugId, com.pillmate.pillmate.Domain.ScheduleStatus status);
 
 }
-

@@ -49,6 +49,12 @@ public class ScheduleUpdateResponse {
     @Schema(description = "복용 종료일", example = "2025-10-15")
     private LocalDate endDate;
     
+    @Schema(description = "카페인 금지 타이머 (status가 TAKEN으로 변경된 경우에만 포함)")
+    private BanTimerResponse caffeineBanTimer;
+    
+    @Schema(description = "알코올 금지 타이머 (status가 TAKEN으로 변경된 경우에만 포함)")
+    private BanTimerResponse alcoholBanTimer;
+    
     @Getter
     @Builder
     @NoArgsConstructor
@@ -59,5 +65,3 @@ public class ScheduleUpdateResponse {
         private Boolean enabled;
     }
 }
-
-

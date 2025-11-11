@@ -41,12 +41,6 @@ public class ScheduleRequest {
     @Schema(description = "알림 설정")
     private AlarmSettings alarm;
     
-    @Schema(description = "계획 상태", example = "SCHEDULED", allowableValues = {"SCHEDULED", "CANCELLED"})
-    private String plan;
-    
-    @Schema(description = "복용 상태", example = "TAKEN", allowableValues = {"TAKEN", "MISSED"})
-    private String status;
-    
     @NotNull(message = "복용 시작일은 필수입니다")
     @Schema(description = "복용 시작일", example = "2025-10-08", required = true)
     private LocalDate startDate;
