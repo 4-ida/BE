@@ -1,12 +1,14 @@
 package com.pillmate.pillmate.Service;
 
 import com.pillmate.pillmate.DTO.DashboardProgressResponse;
+import com.pillmate.pillmate.Domain.ScheduleStatus;
 import com.pillmate.pillmate.Domain.User;
-import com.pillmate.pillmate.Repository.IntakeRepository;
 import com.pillmate.pillmate.Repository.ScheduleRepository;
 import com.pillmate.pillmate.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 
@@ -15,7 +17,6 @@ import java.time.LocalDate;
 public class DashboardService {
 
 	private final ScheduleRepository scheduleRepository;
-	private final IntakeRepository intakeRepository;
 	private final UserRepository userRepository;
 
 	/**
@@ -30,24 +31,36 @@ public class DashboardService {
 	 * 특정 연/월 기준 대시보드 (쿼리파라미터로 year, month 들어오는 경우)
 	 */
 	public DashboardProgressResponse getProgress(Long userId, int year, int month) {
+		// 월 값 검증
+		if (month < 1 || month > 12) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "월은 1부터 12 사이의 값이어야 합니다");
+		}
 
-		// 0. 사용자 이름 가져오기
+		// 사용자 이름 가져오기
 		User user = userRepository.findById(userId)
-			.orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다"));
 
 		String userName = user.getName();
 		String periodLabel = year + "년 " + month + "월";
 
-		// 1. 이 사용자에게 등록된 전체 복용 계획 개수
-		int totalPlanned = scheduleRepository.countByUserId(userId);
+		// 해당 월의 첫 날과 마지막 날 계산
+		LocalDate firstDayOfMonth = LocalDate.of(year, month, 1);
+		LocalDate lastDayOfMonth = firstDayOfMonth.withDayOfMonth(firstDayOfMonth.lengthOfMonth());
 
-		// 2. 실제 섭취(기록)된 개수
-		int completed = intakeRepository.countByUserId(userId);
+		// 1. 해당 기간 내에 등록된 전체 복용 계획 개수 (CANCELLED 제외)
+		// SCHEDULED, TAKEN, MISSED 상태만 포함
+		int totalPlanned = scheduleRepository.countByUserIdAndStatusNotAndDateRange(
+			userId, ScheduleStatus.CANCELLED, firstDayOfMonth, lastDayOfMonth);
 
-		// 3. 누락
-		int missed = Math.max(totalPlanned - completed, 0);
+		// 2. 실제 섭취(기록)된 개수 - TAKEN 상태인 일정 개수
+		int completed = scheduleRepository.countByUserIdAndStatusAndDateRange(
+			userId, ScheduleStatus.TAKEN, firstDayOfMonth, lastDayOfMonth);
 
-		// 4. 진행률
+		// 3. 누락 (MISSED 상태인 일정 개수)
+		int missed = scheduleRepository.countByUserIdAndStatusAndDateRange(
+			userId, ScheduleStatus.MISSED, firstDayOfMonth, lastDayOfMonth);
+
+		// 4. 진행률 계산 (totalPlanned가 0이면 0%, 아니면 completed / totalPlanned * 100)
 		int adherencePercent = (totalPlanned == 0)
 			? 0
 			: (int) Math.round((completed * 100.0) / totalPlanned);
