@@ -42,14 +42,14 @@ public class UserService {
             throw new IllegalArgumentException("비밀번호가 일치하지 않습니다");
         }
         
-        // 사용자 생성
+        // 사용자 생성 (약관 동의는 기본값 false)
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
                 .password("") // 임시로 빈 문자열, 아래에서 암호화
-                .termsOfService(request.getConsent().getTermsOfService())
-                .privacyPolicy(request.getConsent().getPrivacyPolicy())
-                .dataUsage(request.getConsent().getDataUsage())
+                .termsOfService(false)
+                .privacyPolicy(false)
+                .dataUsage(false)
                 .provider(AuthProvider.LOCAL)
                 .providerId(request.getEmail())
                 .build();

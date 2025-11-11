@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.pillmate.pillmate.Config.JwtUtil;
-import com.pillmate.pillmate.DTO.ConsentDto;
 import com.pillmate.pillmate.DTO.LoginRequest;
 import com.pillmate.pillmate.DTO.LoginResponse;
 import com.pillmate.pillmate.DTO.SignUpRequest;
@@ -75,13 +74,6 @@ public class AuthController {
             // JWT 토큰 생성
             String token = jwtUtil.generateToken(user.getEmail());
             
-            // 약관 동의 정보
-            ConsentDto consent = ConsentDto.builder()
-                    .termsOfService(user.getTermsOfService())
-                    .privacyPolicy(user.getPrivacyPolicy())
-                    .dataUsage(user.getDataUsage())
-                    .build();
-            
             // 사용자 정보
             SignUpResponse.UserInfo userInfo = SignUpResponse.UserInfo.builder()
                     .id(user.getId())
@@ -92,7 +84,6 @@ public class AuthController {
             // Response 데이터 구성
             SignUpResponse.SignUpData data = SignUpResponse.SignUpData.builder()
                     .user(userInfo)
-                    .consent(consent)
                     .token(token)
                     .createdAt(user.getCreatedAt())
                     .updatedAt(user.getUpdatedAt())
