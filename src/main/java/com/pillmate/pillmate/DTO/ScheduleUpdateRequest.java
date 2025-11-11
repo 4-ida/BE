@@ -26,8 +26,17 @@ public class ScheduleUpdateRequest {
     @Schema(description = "복용량 또는 용법", example = "1정")
     private String dose;
     
+    @Schema(description = "복용 날짜 (YYYY-MM-DD 형식)", example = "2025-10-08")
+    private LocalDate date;
+    
     @Schema(description = "복용 예정 시각 (ISO8601 형식)", example = "2025-10-08T09:00:00")
-    private LocalDateTime date;
+    private LocalDateTime alarmAt;
+    
+    @Schema(description = "복용 기간 시작일 (표시용, YYYY-MM-DD 형식)", example = "2025-10-08")
+    private LocalDate startDate;
+    
+    @Schema(description = "복용 기간 종료일 (표시용, YYYY-MM-DD 형식)", example = "2025-10-15")
+    private LocalDate endDate;
     
     @Schema(description = "사용자 메모", example = "시간 조정")
     private String memo;
@@ -41,12 +50,6 @@ public class ScheduleUpdateRequest {
     @Valid
     @Schema(description = "알림 설정")
     private AlarmSettings alarm;
-    
-    @Schema(description = "복용 시작일", example = "2025-10-08")
-    private LocalDate startDate;
-    
-    @Schema(description = "복용 종료일", example = "2025-10-15")
-    private LocalDate endDate;
     
     @Getter
     @Builder

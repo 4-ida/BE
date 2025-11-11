@@ -57,11 +57,13 @@ public class ScheduleController {
                         .name(scheduleResponse.getName())
                         .dose(scheduleResponse.getDose())
                         .date(scheduleResponse.getDate())
+                        .alarmAt(scheduleResponse.getAlarmAt())
+                        .startDate(scheduleResponse.getStartDate())
+                        .endDate(scheduleResponse.getEndDate())
+                        .memo(scheduleResponse.getMemo())
                         .plan(scheduleResponse.getPlan())
                         .status(scheduleResponse.getStatus())
                         .alarm(scheduleResponse.getAlarm())
-                        .startDate(scheduleResponse.getStartDate())
-                        .endDate(scheduleResponse.getEndDate())
                         .build())
                 .build();
         
@@ -86,69 +88,41 @@ public class ScheduleController {
             private Long drugId;
             private String name;
             private String dose;
-            private java.time.LocalDateTime date;
+            private java.time.LocalDate date;  // 복용 날짜
+            private java.time.LocalDateTime alarmAt;  // 복용 예정 시각
+            private java.time.LocalDate startDate;  // 복용 기간 시작일 (표시용)
+            private java.time.LocalDate endDate;  // 복용 기간 종료일 (표시용)
+            private String memo;
             private String plan;
             private String status;
             private ScheduleResponse.AlarmSettings alarm;
-            private java.time.LocalDate startDate;  // 복용 시작일
-            private java.time.LocalDate endDate;    // 복용 종료일
         }
     }
     
-    @Operation(summary = "복약 일정 조회", description = "단일 날짜 또는 기간으로 복약 일정 목록을 조회합니다.")
+    @Operation(
+        summary = "복약 일정 목록 조회", 
+        description = "동일한 날짜에 등록된 모든 복약 일정(scheduleID)을 리스트로 조회합니다.\n\n" +
+                     "**단일 일정 방식**: 각 일정(scheduleID)은 하나의 날짜만 가지며, 독립적으로 관리됩니다.\n" +
+                     "동일한 날짜에 여러 일정이 등록되어 있으면 모두 리스트로 반환됩니다.\n\n" +
+                     "**응답**: 조회된 날짜와 해당 날짜의 모든 일정 목록을 반환합니다."
+    )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "일정 조회 성공"),
-        @ApiResponse(responseCode = "400", description = "잘못된 요청")
+        @ApiResponse(responseCode = "400", description = "잘못된 요청 (날짜 파라미터 누락 또는 잘못된 날짜 형식)")
     })
     @GetMapping("/schedules")
     public ResponseEntity<ScheduleListResponse> getSchedules(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        List<ScheduleResponse> schedules;
-        
-        // date와 from/to 모두 입력된 경우 - 교집합 방식
-        if (date != null && from != null && to != null) {
-            // date가 from/to 범위 안에 있는지 확인
-            if (!date.isBefore(from) && !date.isAfter(to)) {
-                // date가 범위 안에 있으면 → date의 일정만 반환
-                schedules = scheduleService.getSchedulesByDate(date);
-            } else {
-                // date가 범위 밖이면 → 에러 반환
-                return ResponseEntity.badRequest().body(ScheduleListResponse.builder()
-                        .message("date 파라미터는 from과 to 범위 내에 있어야 합니다.")
-                        .data(ScheduleListResponse.ScheduleListData.builder()
-                                .schedules(java.util.Collections.emptyList())
-                                .build())
-                        .build());
-            }
-        } else if (from != null && to != null) {
-            // 기간 조회
-            schedules = scheduleService.getSchedulesByDateRange(from, to);
-        } else if (date != null) {
-            // 단일 날짜 조회
-            schedules = scheduleService.getSchedulesByDate(date);
-        } else if (from != null || to != null) {
-            // from 또는 to만 입력한 경우 에러
-            return ResponseEntity.badRequest().body(ScheduleListResponse.builder()
-                    .message("from과 to 파라미터는 함께 입력해야 합니다.")
-                    .data(ScheduleListResponse.ScheduleListData.builder()
-                            .schedules(java.util.Collections.emptyList())
-                            .build())
-                    .build());
-        } else {
-            // 파라미터 없음 - 400 에러
-            return ResponseEntity.badRequest().body(ScheduleListResponse.builder()
-                    .message("date 파라미터 또는 from, to 파라미터가 필요합니다.")
-                    .data(ScheduleListResponse.ScheduleListData.builder()
-                            .schedules(java.util.Collections.emptyList())
-                            .build())
-                    .build());
-        }
+            @RequestParam(required = true) 
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) 
+            @Schema(description = "조회할 날짜 (YYYY-MM-DD 형식, 필수)", example = "2025-11-12", required = true) 
+            LocalDate date) {
+        Long userId = SecurityUtil.currentUserId();
+        List<ScheduleResponse> schedules = scheduleService.getSchedulesByDate(userId, date);
         
         ScheduleListResponse response = ScheduleListResponse.builder()
                 .message("일정 조회 성공")
                 .data(ScheduleListResponse.ScheduleListData.builder()
+                        .date(date)
                         .schedules(schedules)
                         .build())
                 .build();
@@ -156,14 +130,49 @@ public class ScheduleController {
         return ResponseEntity.ok(response);
     }
     
-    @Operation(summary = "복약 일정 단일 조회", description = "일정 ID를 통해 특정 복약 일정의 상세 정보를 조회합니다.")
+    @Operation(
+        summary = "복약 일정 월별 조회", 
+        description = "특정 월에 등록된 모든 복약 일정을 날짜별로 그룹화하여 조회합니다.\n\n" +
+                     "**캘린더용 API**: 월별 캘린더 화면에서 사용하기 위한 API입니다.\n\n" +
+                     "**응답 형식**: 날짜를 키로 하고, 해당 날짜의 일정 목록을 값으로 하는 맵 형태로 반환됩니다.\n" +
+                     "예: `{ \"2025-11-01\": [...], \"2025-11-02\": [...], ... }`"
+    )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "일정 조회 성공"),
-        @ApiResponse(responseCode = "404", description = "존재하지 않는 게시물입니다", 
-                     content = @io.swagger.v3.oas.annotations.media.Content(
-                         mediaType = "application/json",
-                         schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = com.pillmate.pillmate.DTO.ErrorResponse.class)
-                     ))
+        @ApiResponse(responseCode = "400", description = "잘못된 요청 (년도 또는 월 값이 유효하지 않음)")
+    })
+    @GetMapping("/schedules/month")
+    public ResponseEntity<ScheduleMonthResponse> getSchedulesByMonth(
+            @RequestParam(required = true) 
+            @Schema(description = "조회할 년도", example = "2025", required = true) 
+            Integer year,
+            @RequestParam(required = true) 
+            @Schema(description = "조회할 월 (1-12)", example = "11", required = true) 
+            Integer month) {
+        Long userId = SecurityUtil.currentUserId();
+        java.util.Map<java.time.LocalDate, List<ScheduleResponse>> schedulesByDate = 
+                scheduleService.getSchedulesByMonth(userId, year, month);
+        
+        ScheduleMonthResponse response = ScheduleMonthResponse.builder()
+                .message("월별 일정 조회 성공")
+                .data(ScheduleMonthResponse.ScheduleMonthData.builder()
+                        .year(year)
+                        .month(month)
+                        .schedulesByDate(schedulesByDate)
+                        .build())
+                .build();
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    @Operation(
+        summary = "복약 일정 단일 조회", 
+        description = "일정 ID를 통해 특정 복약 일정을 조회합니다.\n\n" +
+                     "**단일 일정 방식**: 각 일정은 하나의 날짜만 가지며, date 파라미터가 필요 없습니다."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "일정 조회 성공"),
+        @ApiResponse(responseCode = "404", description = "존재하지 않는 일정입니다")
     })
     @GetMapping("/schedules/{scheduleId}")
     public ResponseEntity<ScheduleDetailResponse> getScheduleById(@PathVariable Long scheduleId) {
@@ -181,20 +190,64 @@ public class ScheduleController {
     @lombok.Builder
     @lombok.NoArgsConstructor
     @lombok.AllArgsConstructor
+    @Schema(description = "복약 일정 목록 조회 응답")
     public static class ScheduleListResponse {
+        @Schema(description = "응답 메시지", example = "일정 조회 성공")
         private String message;
+        
+        @Schema(description = "일정 목록 데이터")
         private ScheduleListData data;
         
         @lombok.Getter
         @lombok.Builder
         @lombok.NoArgsConstructor
         @lombok.AllArgsConstructor
+        @Schema(description = "일정 목록 데이터")
         public static class ScheduleListData {
+            @Schema(description = "조회한 날짜", example = "2025-11-12")
+            private java.time.LocalDate date;
+            
+            @Schema(description = "일정 목록 (동일한 날짜에 등록된 모든 scheduleID 목록)")
             private List<ScheduleResponse> schedules;
         }
     }
     
-    @Operation(summary = "복약 일정 수정", description = "기존 일정의 세부 정보를 수정합니다.")
+    @lombok.Getter
+    @lombok.Builder
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    @Schema(description = "복약 일정 월별 조회 응답")
+    public static class ScheduleMonthResponse {
+        @Schema(description = "응답 메시지", example = "월별 일정 조회 성공")
+        private String message;
+        
+        @Schema(description = "월별 일정 데이터")
+        private ScheduleMonthData data;
+        
+        @lombok.Getter
+        @lombok.Builder
+        @lombok.NoArgsConstructor
+        @lombok.AllArgsConstructor
+        @Schema(description = "월별 일정 데이터")
+        public static class ScheduleMonthData {
+            @Schema(description = "조회한 년도", example = "2025")
+            private Integer year;
+            
+            @Schema(description = "조회한 월", example = "11")
+            private Integer month;
+            
+            @Schema(description = "날짜별 일정 목록 (날짜를 키로 하고, 해당 날짜의 일정 목록을 값으로 하는 맵)", 
+                     example = "{\"2025-11-01\": [...], \"2025-11-02\": [...]}")
+            private java.util.Map<java.time.LocalDate, List<ScheduleResponse>> schedulesByDate;
+        }
+    }
+    
+    @Operation(
+        summary = "복약 일정 수정", 
+        description = "기존 일정의 세부 정보를 수정합니다.\n\n" +
+                     "**단일 일정 방식**: 각 일정은 하나의 날짜만 가지며, 모든 필드를 직접 수정할 수 있습니다.\n" +
+                     "- `status`를 `TAKEN`으로 변경하면 카페인/알코올 금지 타이머가 활성화됩니다."
+    )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "일정 수정 성공"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
@@ -204,7 +257,8 @@ public class ScheduleController {
     public ResponseEntity<ScheduleUpdateResponseWrapper> updateSchedule(
             @PathVariable Long scheduleId,
             @Valid @RequestBody ScheduleUpdateRequest request) {
-        ScheduleUpdateResponse updateResponse = scheduleService.updateSchedule(scheduleId, request);
+        Long userId = SecurityUtil.currentUserId();
+        ScheduleUpdateResponse updateResponse = scheduleService.updateSchedule(scheduleId, userId, request);
         
         ScheduleUpdateResponseWrapper response = ScheduleUpdateResponseWrapper.builder()
                 .message("복약 일정이 수정되었습니다.")
@@ -221,7 +275,8 @@ public class ScheduleController {
     })
     @DeleteMapping("/schedules/{scheduleId}")
     public ResponseEntity<ScheduleDeleteResponse> deleteSchedule(@PathVariable Long scheduleId) {
-        Long deletedScheduleId = scheduleService.deleteSchedule(scheduleId);
+        Long userId = SecurityUtil.currentUserId();
+        Long deletedScheduleId = scheduleService.deleteSchedule(scheduleId, userId);
         
         ScheduleDeleteResponse response = ScheduleDeleteResponse.builder()
                 .message("복약 일정이 삭제되었습니다.")

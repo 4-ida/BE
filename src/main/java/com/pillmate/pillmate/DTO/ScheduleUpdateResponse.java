@@ -28,8 +28,17 @@ public class ScheduleUpdateResponse {
     @Schema(description = "복용량", example = "1정")
     private String dose;
     
+    @Schema(description = "복용 날짜 (YYYY-MM-DD 형식)", example = "2025-10-08")
+    private LocalDate date;
+    
     @Schema(description = "복용 예정 시각", example = "2025-10-08T09:00:00")
-    private LocalDateTime date;
+    private LocalDateTime alarmAt;
+    
+    @Schema(description = "복용 기간 시작일 (표시용)", example = "2025-10-08")
+    private LocalDate startDate;
+    
+    @Schema(description = "복용 기간 종료일 (표시용)", example = "2025-10-15")
+    private LocalDate endDate;
     
     @Schema(description = "사용자 메모", example = "시간 조정")
     private String memo;
@@ -42,12 +51,6 @@ public class ScheduleUpdateResponse {
     
     @Schema(description = "알림 설정")
     private AlarmSettings alarm;
-    
-    @Schema(description = "복용 시작일", example = "2025-10-08")
-    private LocalDate startDate;
-    
-    @Schema(description = "복용 종료일", example = "2025-10-15")
-    private LocalDate endDate;
     
     @Schema(description = "카페인 금지 타이머 (status가 TAKEN으로 변경된 경우에만 포함)")
     private BanTimerResponse caffeineBanTimer;

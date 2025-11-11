@@ -30,9 +30,19 @@ public class ScheduleRequest {
     @Schema(description = "복용량 또는 용법", example = "1정", required = true)
     private String dose;
     
+    @NotNull(message = "복용 날짜는 필수입니다")
+    @Schema(description = "복용 날짜 (YYYY-MM-DD 형식)", example = "2025-10-08", required = true)
+    private LocalDate date;
+    
     @NotNull(message = "알림 시각은 필수입니다")
     @Schema(description = "복용 예정 시각 (ISO8601 형식)", example = "2025-10-08T08:30:00", required = true)
-    private LocalDateTime date;
+    private LocalDateTime alarmAt;
+    
+    @Schema(description = "복용 기간 시작일 (표시용, YYYY-MM-DD 형식)", example = "2025-10-08")
+    private LocalDate startDate;
+    
+    @Schema(description = "복용 기간 종료일 (표시용, YYYY-MM-DD 형식)", example = "2025-10-15")
+    private LocalDate endDate;
     
     @Schema(description = "사용자 메모", example = "식후 30분")
     private String memo;
@@ -40,14 +50,6 @@ public class ScheduleRequest {
     @Valid
     @Schema(description = "알림 설정")
     private AlarmSettings alarm;
-    
-    @NotNull(message = "복용 시작일은 필수입니다")
-    @Schema(description = "복용 시작일", example = "2025-10-08", required = true)
-    private LocalDate startDate;
-    
-    @NotNull(message = "복용 종료일은 필수입니다")
-    @Schema(description = "복용 종료일", example = "2025-10-15", required = true)
-    private LocalDate endDate;
     
     @Getter
     @Builder
