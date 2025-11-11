@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
     INDEX idx_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='사용자 정보 테이블';
 
--- schedules 테이블 생성 스크립트 (캘린더 복약 일정)
+-- schedules 테이블 생성 스크립트 (캘린더 복약 일정 - 단일 일정 방식)
 
 CREATE TABLE IF NOT EXISTS schedules (
     schedule_id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -21,20 +21,24 @@ CREATE TABLE IF NOT EXISTS schedules (
     drug_id BIGINT NOT NULL COMMENT '약품 ID',
     drug_name VARCHAR(150) COMMENT '약품명',
     dose VARCHAR(100) NOT NULL COMMENT '복용량 또는 용법',
-    alarm_at DATETIME NOT NULL COMMENT '알림 시각',
+    date DATE NOT NULL COMMENT '복용 날짜 (단일 날짜)',
+    alarm_at DATETIME NOT NULL COMMENT '복용 예정 시각',
+    start_date DATE NULL COMMENT '복용 기간 시작일 (표시용)',
+    end_date DATE NULL COMMENT '복용 기간 종료일 (표시용)',
     memo TEXT COMMENT '사용자 메모',
     alarm_enabled BOOLEAN NOT NULL DEFAULT FALSE COMMENT '알림 사용 여부',
     repeat_rule VARCHAR(500) COMMENT '반복 규칙 (RFC5545 형식)',
-    start_date DATE NOT NULL COMMENT '복용 시작일',
-    end_date DATE NOT NULL COMMENT '복용 종료일',
-    status VARCHAR(20) NOT NULL DEFAULT 'SCHEDULED' COMMENT '일정 상태 (SCHEDULED, COMPLETED, MISSED, CANCELLED)',
+    status VARCHAR(20) NOT NULL DEFAULT 'SCHEDULED' COMMENT '일정 상태 (SCHEDULED, TAKEN, MISSED, CANCELLED)',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '일정 생성 시각',
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '일정 수정 시각',
     INDEX idx_drug_id (drug_id),
+    INDEX idx_date (date),
+    INDEX idx_user_date (user_id, date),
     INDEX idx_alarm_at (alarm_at),
-    INDEX idx_date_range (start_date, end_date),
-    INDEX idx_status (status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='캘린더 복약 일정 테이블';
+    INDEX idx_status (status),
+    INDEX idx_start_date (start_date),
+    INDEX idx_end_date (end_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='캘린더 복약 일정 테이블 (단일 일정 방식)';
 
 -- 약품 수동 보강 데이터를 저장하는 테이블
 CREATE TABLE IF NOT EXISTS drug_manual_overrides (

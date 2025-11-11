@@ -37,15 +37,9 @@ public class ScheduleService {
     
     @Transactional
     public ScheduleResponse createSchedule(Long userId, ScheduleRequest request) {
-        // 복용 기간 검증
-        if (request.getStartDate().isAfter(request.getEndDate())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "복용 시작일은 종료일보다 이전이어야 합니다");
-        }
-        
-        // 알림 시각이 복용 기간 내에 있는지 검증
-        if (request.getDate().toLocalDate().isBefore(request.getStartDate()) ||
-            request.getDate().toLocalDate().isAfter(request.getEndDate())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "알림 시각은 복용 기간 내에 있어야 합니다");
+        // 복용 날짜와 알림 시각 검증
+        if (request.getAlarmAt() != null && !request.getDate().equals(request.getAlarmAt().toLocalDate())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "복용 날짜와 알림 시각의 날짜가 일치해야 합니다");
         }
         
         DrugDetailResponse drugDetail = fetchDrugDetailOrThrow(request.getDrugId());
@@ -55,18 +49,30 @@ public class ScheduleService {
         // 등록 시에는 항상 SCHEDULED로 저장 (기본값)
         ScheduleStatus resolvedStatus = ScheduleStatus.SCHEDULED;
 
-        // 일정 생성
+        // 복용 기간 검증 (startDate, endDate가 있으면)
+        if (request.getStartDate() != null && request.getEndDate() != null) {
+            if (request.getStartDate().isAfter(request.getEndDate())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "복용 시작일은 종료일보다 이전이어야 합니다");
+            }
+            // date가 기간 내에 있는지 검증 (선택사항)
+            if (request.getDate().isBefore(request.getStartDate()) || request.getDate().isAfter(request.getEndDate())) {
+                // 경고만 하고 계속 진행 (date가 기간 밖에 있어도 허용)
+            }
+        }
+        
+        // 일정 생성 (단일 날짜, 복용 기간은 표시용)
         Schedule schedule = Schedule.builder()
                 .userId(userId)
                 .drugId(request.getDrugId())
                 .drugName(resolvedDrugName)
                 .dose(request.getDose())
-                .alarmAt(request.getDate())
+                .date(request.getDate())
+                .alarmAt(request.getAlarmAt())
+                .startDate(request.getStartDate())
+                .endDate(request.getEndDate())
                 .memo(request.getMemo())
                 .alarmEnabled(alarmEnabled)
                 .repeatRule(null)
-                .startDate(request.getStartDate())
-                .endDate(request.getEndDate())
                 .status(resolvedStatus)
                 .build();
         
@@ -83,18 +89,19 @@ public class ScheduleService {
      */
     public ScheduleResponse getScheduleById(Long scheduleId) {
         Schedule schedule = scheduleRepository.findById(scheduleId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 게시물입니다"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 일정입니다"));
         
         return ScheduleResponse.from(schedule);
     }
     
     /**
      * 특정 날짜의 일정 조회
+     * @param userId 사용자 ID
      * @param date 조회할 날짜 (YYYY-MM-DD 형식)
      * @return 해당 날짜의 일정 목록
      */
-    public List<ScheduleResponse> getSchedulesByDate(LocalDate date) {
-        List<Schedule> schedules = scheduleRepository.findByDate(date);
+    public List<ScheduleResponse> getSchedulesByDate(Long userId, LocalDate date) {
+        List<Schedule> schedules = scheduleRepository.findByUserIdAndDate(userId, date);
         return schedules.stream()
                 .map(ScheduleResponse::from)
                 .collect(Collectors.toList());
@@ -102,31 +109,67 @@ public class ScheduleService {
     
     /**
      * 특정 기간의 일정 조회
+     * @param userId 사용자 ID
      * @param from 시작 날짜 (YYYY-MM-DD 형식)
      * @param to 종료 날짜 (YYYY-MM-DD 형식)
      * @return 해당 기간의 일정 목록
      */
-    public List<ScheduleResponse> getSchedulesByDateRange(LocalDate from, LocalDate to) {
+    public List<ScheduleResponse> getSchedulesByDateRange(Long userId, LocalDate from, LocalDate to) {
         if (from.isAfter(to)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "시작일은 종료일보다 이전이어야 합니다");
         }
         
         List<Schedule> schedules = scheduleRepository.findByDateRange(from, to);
-        return schedules.stream()
+        // 사용자 필터링
+        List<Schedule> userSchedules = schedules.stream()
+                .filter(s -> s.getUserId().equals(userId))
+                .collect(Collectors.toList());
+        
+        return userSchedules.stream()
                 .map(ScheduleResponse::from)
                 .collect(Collectors.toList());
     }
     
     /**
+     * 특정 월의 일정 조회 (날짜별로 그룹화)
+     * @param userId 사용자 ID
+     * @param year 년도 (예: 2025)
+     * @param month 월 (1-12)
+     * @return 해당 월의 일정 목록 (날짜별로 그룹화)
+     */
+    public java.util.Map<LocalDate, List<ScheduleResponse>> getSchedulesByMonth(Long userId, int year, int month) {
+        if (month < 1 || month > 12) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "월은 1부터 12 사이의 값이어야 합니다");
+        }
+        
+        // 해당 월의 첫 날과 마지막 날 계산
+        LocalDate firstDayOfMonth = LocalDate.of(year, month, 1);
+        LocalDate lastDayOfMonth = firstDayOfMonth.withDayOfMonth(firstDayOfMonth.lengthOfMonth());
+        
+        // 해당 월의 모든 일정 조회
+        List<ScheduleResponse> schedules = getSchedulesByDateRange(userId, firstDayOfMonth, lastDayOfMonth);
+        
+        // 날짜별로 그룹화
+        return schedules.stream()
+                .collect(Collectors.groupingBy(ScheduleResponse::getDate));
+    }
+    
+    /**
      * 일정 수정
      * @param scheduleId 일정 ID
+     * @param userId 사용자 ID
      * @param request 수정 요청 데이터
      * @return 수정된 일정 정보
      */
     @Transactional
-    public ScheduleUpdateResponse updateSchedule(Long scheduleId, ScheduleUpdateRequest request) {
+    public ScheduleUpdateResponse updateSchedule(Long scheduleId, Long userId, ScheduleUpdateRequest request) {
         Schedule schedule = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "일정을 찾을 수 없습니다"));
+        
+        // 사용자 검증
+        if (!schedule.getUserId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "해당 일정을 수정할 권한이 없습니다");
+        }
         
         // 약품 변경 처리 (drugId가 제공되면 새로운 약품으로 변경)
         Long targetDrugId = request.getDrugId() != null ? request.getDrugId() : schedule.getDrugId();
@@ -147,34 +190,35 @@ public class ScheduleService {
             schedule.setDrugName(officialName);
         }
         
-        // 복용 기간 검증 및 수정
-        if (request.getStartDate() != null || request.getEndDate() != null) {
-            LocalDate newStartDate = request.getStartDate() != null ? request.getStartDate() : schedule.getStartDate();
-            LocalDate newEndDate = request.getEndDate() != null ? request.getEndDate() : schedule.getEndDate();
-            
-            if (newStartDate.isAfter(newEndDate)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "복용 시작일은 종료일보다 이전이어야 합니다");
-            }
-            
-            if (request.getStartDate() != null && !request.getStartDate().equals(schedule.getStartDate())) {
-                schedule.updateStartDate(request.getStartDate());
-            }
-            
-            if (request.getEndDate() != null && !request.getEndDate().equals(schedule.getEndDate())) {
-                schedule.updateEndDate(request.getEndDate());
-            }
+        // 복용 날짜 수정
+        if (request.getDate() != null && !request.getDate().equals(schedule.getDate())) {
+            schedule.updateDate(request.getDate());
         }
         
-        // 복용 예정 시각 수정 (date 필드)
-        if (request.getDate() != null && !request.getDate().equals(schedule.getAlarmAt())) {
-            LocalDate alarmDate = request.getDate().toLocalDate();
-            LocalDate currentStartDate = request.getStartDate() != null ? request.getStartDate() : schedule.getStartDate();
-            LocalDate currentEndDate = request.getEndDate() != null ? request.getEndDate() : schedule.getEndDate();
-            
-            if (alarmDate.isBefore(currentStartDate) || alarmDate.isAfter(currentEndDate)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "알림 시각은 복용 기간 내에 있어야 합니다");
+        // 복용 예정 시각 수정
+        if (request.getAlarmAt() != null && !request.getAlarmAt().equals(schedule.getAlarmAt())) {
+            // 날짜와 알림 시각의 날짜가 일치하는지 검증
+            LocalDate scheduleDate = request.getDate() != null ? request.getDate() : schedule.getDate();
+            if (!scheduleDate.equals(request.getAlarmAt().toLocalDate())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "복용 날짜와 알림 시각의 날짜가 일치해야 합니다");
             }
-            schedule.updateAlarmAt(request.getDate());
+            schedule.updateAlarmAt(request.getAlarmAt());
+        }
+        
+        // 복용 기간 수정 (표시용)
+        if (request.getStartDate() != null && !request.getStartDate().equals(schedule.getStartDate())) {
+            schedule.updateStartDate(request.getStartDate());
+        }
+        
+        if (request.getEndDate() != null && !request.getEndDate().equals(schedule.getEndDate())) {
+            schedule.updateEndDate(request.getEndDate());
+        }
+        
+        // 복용 기간 검증 (startDate, endDate가 모두 있으면)
+        if (request.getStartDate() != null && request.getEndDate() != null) {
+            if (request.getStartDate().isAfter(request.getEndDate())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "복용 시작일은 종료일보다 이전이어야 합니다");
+            }
         }
         
         // 복용량 수정
@@ -187,16 +231,65 @@ public class ScheduleService {
             schedule.updateMemo(request.getMemo());
         }
         
-        // 상태 수정 (plan과 status 분리 처리)
-        ScheduleStatus previousStatus = schedule.getStatus();
-        ScheduleStatus resolvedStatus = resolveUpdateStatus(request, schedule.getStatus());
+        // 상태 수정 및 금지 타이머 계산
+        BanTimerResponse caffeineBanTimer = null;
+        BanTimerResponse alcoholBanTimer = null;
         
-        // 요청에 status="TAKEN"이 명시적으로 포함되어 있는지 확인
-        boolean statusExplicitlySetToTaken = request.getStatus() != null && 
-                                              request.getStatus().trim().toUpperCase().equals(ScheduleStatus.TAKEN.name());
+        if (request.getStatus() != null) {
+            String statusValue = request.getStatus().trim().toUpperCase();
+            ScheduleStatus previousStatus = schedule.getStatus();
+            ScheduleStatus newStatus = resolveStatus(statusValue);
+            
+            // 상태 변경
+            schedule.updateStatus(newStatus);
+            
+            // TAKEN 상태로 변경된 경우 금지 타이머 계산
+            if (newStatus == ScheduleStatus.TAKEN && previousStatus != ScheduleStatus.TAKEN) {
+                // 복용 기록 생성 (복용 완료 시각은 현재 시각 사용)
+                LocalDateTime takenAt = LocalDateTime.now();
+                
+                // 중복 방지: 이미 복용 기록이 있는지 확인
+                List<MedicationIntake> existingIntakes = medicationIntakeRepository.findByScheduleId(scheduleId);
+                if (existingIntakes.isEmpty()) {
+                    MedicationIntake medicationIntake = MedicationIntake.builder()
+                            .scheduleId(scheduleId)
+                            .drugId(schedule.getDrugId())
+                            .takenAt(takenAt)
+                            .build();
+                    medicationIntakeRepository.save(medicationIntake);
+                } else {
+                    // 이미 기록이 있으면 가장 최근 기록 사용
+                    takenAt = existingIntakes.stream()
+                            .map(MedicationIntake::getTakenAt)
+                            .max(LocalDateTime::compareTo)
+                            .orElse(LocalDateTime.now());
+                }
+                
+                // 금지 타이머 계산 (카페인, 알코올)
+                List<BanTimerResponse> banTimers = medicationIntakeService.calculateBanTimersInternal(takenAt, schedule.getDrugId());
+                
+                // 카페인과 알코올 타이머 분리
+                for (BanTimerResponse timer : banTimers) {
+                    if ("caffeine".equals(timer.getType())) {
+                        caffeineBanTimer = timer;
+                    } else if ("alcohol".equals(timer.getType())) {
+                        alcoholBanTimer = timer;
+                    }
+                }
+            }
+        }
         
-        if (!resolvedStatus.equals(schedule.getStatus())) {
-            schedule.updateStatus(resolvedStatus);
+        // plan 처리 (CANCELLED 상태로 변경)
+        if (request.getPlan() != null) {
+            String planValue = request.getPlan().trim().toUpperCase();
+            if ("CANCELLED".equals(planValue)) {
+                schedule.updateStatus(ScheduleStatus.CANCELLED);
+            } else if ("SCHEDULED".equals(planValue)) {
+                // CANCELLED에서 SCHEDULED로 복구 (단, status가 TAKEN/MISSED가 아니면)
+                if (schedule.getStatus() == ScheduleStatus.CANCELLED) {
+                    schedule.updateStatus(ScheduleStatus.SCHEDULED);
+                }
+            }
         }
         
         // 알림 설정 수정
@@ -209,47 +302,25 @@ public class ScheduleService {
         
         Schedule savedSchedule = scheduleRepository.save(schedule);
         
-        // status="TAKEN"으로 명시적으로 설정된 경우 MedicationIntake 기록 생성 및 금지 타이머 계산
-        BanTimerResponse caffeineBanTimer = null;
-        BanTimerResponse alcoholBanTimer = null;
-        
-        if (statusExplicitlySetToTaken && resolvedStatus.equals(ScheduleStatus.TAKEN)) {
-            // 복용 기록 생성 (복용 완료 시각은 현재 시각 사용)
-            LocalDateTime takenAt = LocalDateTime.now();
-            
-            MedicationIntake medicationIntake = MedicationIntake.builder()
-                    .scheduleId(savedSchedule.getScheduleId())
-                    .drugId(savedSchedule.getDrugId())
-                    .takenAt(takenAt)
-                    .build();
-            medicationIntakeRepository.save(medicationIntake);
-            
-            // 금지 타이머 계산 (카페인, 알코올)
-            List<BanTimerResponse> banTimers = medicationIntakeService.calculateBanTimersInternal(takenAt, savedSchedule.getDrugId());
-            
-            // 카페인과 알코올 타이머 분리
-            for (BanTimerResponse timer : banTimers) {
-                if ("caffeine".equals(timer.getType())) {
-                    caffeineBanTimer = timer;
-                } else if ("alcohol".equals(timer.getType())) {
-                    alcoholBanTimer = timer;
-                }
-            }
-        }
-        
-        // 응답을 ScheduleResponse.from()과 동일한 구조로 변환
+        // 응답 생성
         return buildUpdateResponse(savedSchedule, caffeineBanTimer, alcoholBanTimer);
     }
     
     /**
      * 일정 삭제
      * @param scheduleId 일정 ID
+     * @param userId 사용자 ID
      * @return 삭제된 일정 ID
      */
     @Transactional
-    public Long deleteSchedule(Long scheduleId) {
+    public Long deleteSchedule(Long scheduleId, Long userId) {
         Schedule schedule = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "일정을 찾을 수 없습니다"));
+        
+        // 사용자 검증
+        if (!schedule.getUserId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "해당 일정을 삭제할 권한이 없습니다");
+        }
         
         scheduleRepository.delete(schedule);
         return scheduleId;
@@ -297,39 +368,16 @@ public class ScheduleService {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "약품명이 비어 있습니다");
     }
     
-    /**
-     * 수정 요청의 plan과 status를 기존 상태와 병합하여 최종 상태 결정
-     */
-    private ScheduleStatus resolveUpdateStatus(ScheduleUpdateRequest request, ScheduleStatus currentStatus) {
-        ScheduleStatus baseStatus = currentStatus;
-        
-        // plan 처리 (SCHEDULED 또는 CANCELLED)
-        if (request.getPlan() != null) {
-            String planValue = request.getPlan().trim().toUpperCase();
-            if (!planValue.equals(ScheduleStatus.SCHEDULED.name()) && !planValue.equals(ScheduleStatus.CANCELLED.name())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "plan 값은 SCHEDULED 또는 CANCELLED 이어야 합니다");
-            }
-            baseStatus = ScheduleStatus.valueOf(planValue);
+    private ScheduleStatus resolveStatus(String statusValue) {
+        try {
+            return ScheduleStatus.valueOf(statusValue);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "유효하지 않은 상태 값입니다: " + statusValue);
         }
-        
-        // status 처리 (TAKEN 또는 MISSED)
-        if (request.getStatus() != null) {
-            String statusValue = request.getStatus().trim().toUpperCase();
-            if (!statusValue.equals(ScheduleStatus.TAKEN.name()) && !statusValue.equals(ScheduleStatus.MISSED.name())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "status 값은 TAKEN 또는 MISSED 이어야 합니다");
-            }
-            // CANCELLED 상태에서 바로 TAKEN/MISSED로 변경 불가 (plan을 SCHEDULED로 먼저 변경해야 함)
-            if (baseStatus == ScheduleStatus.CANCELLED) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "취소된 일정은 복용 상태를 설정할 수 없습니다. 먼저 plan을 SCHEDULED로 변경해주세요");
-            }
-            baseStatus = ScheduleStatus.valueOf(statusValue);
-        }
-        
-        return baseStatus;
     }
     
     /**
-     * Schedule 엔티티를 ScheduleUpdateResponse로 변환 (ScheduleResponse.from()과 동일한 구조)
+     * Schedule 엔티티를 ScheduleUpdateResponse로 변환
      */
     private ScheduleUpdateResponse buildUpdateResponse(Schedule schedule, BanTimerResponse caffeineBanTimer, BanTimerResponse alcoholBanTimer) {
         ScheduleStatus currentStatus = schedule.getStatus();
@@ -345,15 +393,16 @@ public class ScheduleService {
                 .drugId(schedule.getDrugId())
                 .name(schedule.getDrugName())
                 .dose(schedule.getDose())
-                .date(schedule.getAlarmAt())
+                .date(schedule.getDate())
+                .alarmAt(schedule.getAlarmAt())
+                .startDate(schedule.getStartDate())
+                .endDate(schedule.getEndDate())
                 .memo(schedule.getMemo())
                 .plan(resolvedPlan)
                 .status(resolvedStatus)
                 .alarm(ScheduleUpdateResponse.AlarmSettings.builder()
                         .enabled(schedule.getAlarmEnabled())
                         .build())
-                .startDate(schedule.getStartDate())
-                .endDate(schedule.getEndDate())
                 .caffeineBanTimer(caffeineBanTimer)
                 .alcoholBanTimer(alcoholBanTimer)
                 .build();

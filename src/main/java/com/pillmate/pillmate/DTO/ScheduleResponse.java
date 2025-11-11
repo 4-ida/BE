@@ -32,8 +32,17 @@ public class ScheduleResponse {
     @Schema(description = "복용량", example = "1정")
     private String dose;
     
+    @Schema(description = "복용 날짜 (YYYY-MM-DD 형식)", example = "2025-10-08")
+    private LocalDate date;
+    
     @Schema(description = "복용 예정 시각", example = "2025-10-08T08:30:00")
-    private LocalDateTime date;
+    private LocalDateTime alarmAt;
+    
+    @Schema(description = "복용 기간 시작일 (표시용)", example = "2025-10-08")
+    private LocalDate startDate;
+    
+    @Schema(description = "복용 기간 종료일 (표시용)", example = "2025-10-15")
+    private LocalDate endDate;
     
     @Schema(description = "사용자 메모", example = "식후 30분")
     private String memo;
@@ -50,12 +59,6 @@ public class ScheduleResponse {
     @JsonIgnore
     @Schema(description = "내부 일정 상태", hidden = true)
     private ScheduleStatus internalStatus;
-    
-    @Schema(description = "복용 시작일", example = "2025-10-08")
-    private LocalDate startDate;
-    
-    @Schema(description = "복용 종료일", example = "2025-10-15")
-    private LocalDate endDate;
     
     /**
      * 조회용: 현재 상태를 그대로 반환
@@ -74,7 +77,10 @@ public class ScheduleResponse {
                 .drugId(schedule.getDrugId())
                 .name(schedule.getDrugName())
                 .dose(schedule.getDose())
-                .date(schedule.getAlarmAt())
+                .date(schedule.getDate())
+                .alarmAt(schedule.getAlarmAt())
+                .startDate(schedule.getStartDate())
+                .endDate(schedule.getEndDate())
                 .memo(schedule.getMemo())
                 .plan(resolvedPlan)
                 .status(resolvedStatus)
@@ -82,8 +88,6 @@ public class ScheduleResponse {
                         .enabled(schedule.getAlarmEnabled())
                         .build())
                 .internalStatus(currentStatus)
-                .startDate(schedule.getStartDate())
-                .endDate(schedule.getEndDate())
                 .build();
     }
     
@@ -129,7 +133,10 @@ public class ScheduleResponse {
                 .drugId(schedule.getDrugId())
                 .name(schedule.getDrugName())
                 .dose(schedule.getDose())
-                .date(schedule.getAlarmAt())
+                .date(schedule.getDate())
+                .alarmAt(schedule.getAlarmAt())
+                .startDate(schedule.getStartDate())
+                .endDate(schedule.getEndDate())
                 .memo(schedule.getMemo())
                 .plan(resolvedPlan)
                 .status(resolvedStatus)
@@ -137,8 +144,6 @@ public class ScheduleResponse {
                         .enabled(schedule.getAlarmEnabled())
                         .build())
                 .internalStatus(currentStatus)
-                .startDate(schedule.getStartDate())
-                .endDate(schedule.getEndDate())
                 .build();
     }
     

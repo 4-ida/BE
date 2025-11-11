@@ -47,7 +47,16 @@ public class Schedule {
     private String dose;  // 복용량 또는 용법
     
     @Column(nullable = false)
+    private LocalDate date;  // 복용 날짜 (단일 날짜)
+    
+    @Column(nullable = false)
     private LocalDateTime alarmAt;  // 복용 예정 시각
+    
+    @Column
+    private LocalDate startDate;  // 복용 기간 시작일 (표시용)
+    
+    @Column
+    private LocalDate endDate;  // 복용 기간 종료일 (표시용)
     
     @Column(columnDefinition = "TEXT")
     private String memo;  // 사용자 메모
@@ -57,12 +66,6 @@ public class Schedule {
     
     @Column(length = 500)
     private String repeatRule;  // 반복 규칙 (RFC5545 형식)
-    
-    @Column(nullable = false)
-    private LocalDate startDate;  // 복용 시작일
-    
-    @Column(nullable = false)
-    private LocalDate endDate;  // 복용 종료일
     
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, columnDefinition = "VARCHAR(20) DEFAULT 'SCHEDULED'")
@@ -95,6 +98,10 @@ public class Schedule {
     
     public void updateAlarmEnabled(Boolean alarmEnabled) {
         this.alarmEnabled = alarmEnabled;
+    }
+    
+    public void updateDate(LocalDate date) {
+        this.date = date;
     }
     
     public void updateStartDate(LocalDate startDate) {
