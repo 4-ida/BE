@@ -11,6 +11,8 @@ import lombok.Setter;
 public class UserProfileUpdateRequest {
 
 	private String name;
+	@Schema(description = "프로필 이미지 URL", example = "https://example.com/profile.png")
+	private String profileImage;
 
 	@Schema(description = "카페인 민감도", example = "NORMAL", allowableValues = {"WEAK","NORMAL","STRONG"})
 	private CaffeineSensitivity caffeineSensitivity;

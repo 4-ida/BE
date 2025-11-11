@@ -114,7 +114,7 @@ public class UserService {
         // DTO에 profileImage가 없으니까 여기서는 null 넣어서 그대로 두게 함
         user.updateProfile(
             req.getName(),
-            null,  // 프로필 이미지는 이번 DTO에 없으니까 변경 안 함
+            req.getProfileImage(),// 프로필 이미지는 이번 DTO에 없으니까 변경 안 함
             req.getCaffeineSensitivity(),
             req.getAlcoholPattern()  // alcoholPattern을 drinkingPattern으로 매핑
         );
