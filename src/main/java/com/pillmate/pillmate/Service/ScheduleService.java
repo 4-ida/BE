@@ -7,16 +7,21 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.pillmate.pillmate.Domain.Schedule;
 import com.pillmate.pillmate.Domain.ScheduleStatus;
+import com.pillmate.pillmate.Domain.MedicationIntake;
 import com.pillmate.pillmate.DTO.ScheduleRequest;
 import com.pillmate.pillmate.DTO.ScheduleResponse;
 import com.pillmate.pillmate.DTO.ScheduleUpdateRequest;
 import com.pillmate.pillmate.DTO.ScheduleUpdateResponse;
 import com.pillmate.pillmate.DTO.DrugDetailResponse;
+import com.pillmate.pillmate.DTO.BanTimerResponse;
 import com.pillmate.pillmate.Repository.ScheduleRepository;
+import com.pillmate.pillmate.Repository.MedicationIntakeRepository;
+import com.pillmate.pillmate.Service.MedicationIntakeService;
 
 import lombok.RequiredArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,6 +32,8 @@ public class ScheduleService {
     
     private final ScheduleRepository scheduleRepository;
     private final DrugDetailService drugDetailService;
+    private final MedicationIntakeRepository medicationIntakeRepository;
+    private final MedicationIntakeService medicationIntakeService;
     
     @Transactional
     public ScheduleResponse createSchedule(Long userId, ScheduleRequest request) {
@@ -45,7 +52,8 @@ public class ScheduleService {
         String resolvedDrugName = resolveDrugName(request, drugDetail);
         boolean alarmEnabled = resolveAlarmEnabled(request);
         
-        ScheduleStatus resolvedStatus = resolveStatus(request);
+        // 등록 시에는 항상 SCHEDULED로 저장 (기본값)
+        ScheduleStatus resolvedStatus = ScheduleStatus.SCHEDULED;
 
         // 일정 생성
         Schedule schedule = Schedule.builder()
@@ -63,7 +71,9 @@ public class ScheduleService {
                 .build();
         
         Schedule savedSchedule = scheduleRepository.save(schedule);
-        return ScheduleResponse.from(savedSchedule);
+        
+        // 등록 시에는 plan과 status가 없으므로 null 전달 (응답에서 plan은 "SCHEDULED", status는 null 반환)
+        return ScheduleResponse.from(savedSchedule, null, null);
     }
     
     /**
@@ -178,7 +188,13 @@ public class ScheduleService {
         }
         
         // 상태 수정 (plan과 status 분리 처리)
+        ScheduleStatus previousStatus = schedule.getStatus();
         ScheduleStatus resolvedStatus = resolveUpdateStatus(request, schedule.getStatus());
+        
+        // 요청에 status="TAKEN"이 명시적으로 포함되어 있는지 확인
+        boolean statusExplicitlySetToTaken = request.getStatus() != null && 
+                                              request.getStatus().trim().toUpperCase().equals(ScheduleStatus.TAKEN.name());
+        
         if (!resolvedStatus.equals(schedule.getStatus())) {
             schedule.updateStatus(resolvedStatus);
         }
@@ -193,8 +209,36 @@ public class ScheduleService {
         
         Schedule savedSchedule = scheduleRepository.save(schedule);
         
+        // status="TAKEN"으로 명시적으로 설정된 경우 MedicationIntake 기록 생성 및 금지 타이머 계산
+        BanTimerResponse caffeineBanTimer = null;
+        BanTimerResponse alcoholBanTimer = null;
+        
+        if (statusExplicitlySetToTaken && resolvedStatus.equals(ScheduleStatus.TAKEN)) {
+            // 복용 기록 생성 (복용 완료 시각은 현재 시각 사용)
+            LocalDateTime takenAt = LocalDateTime.now();
+            
+            MedicationIntake medicationIntake = MedicationIntake.builder()
+                    .scheduleId(savedSchedule.getScheduleId())
+                    .drugId(savedSchedule.getDrugId())
+                    .takenAt(takenAt)
+                    .build();
+            medicationIntakeRepository.save(medicationIntake);
+            
+            // 금지 타이머 계산 (카페인, 알코올)
+            List<BanTimerResponse> banTimers = medicationIntakeService.calculateBanTimersInternal(takenAt, savedSchedule.getDrugId());
+            
+            // 카페인과 알코올 타이머 분리
+            for (BanTimerResponse timer : banTimers) {
+                if ("caffeine".equals(timer.getType())) {
+                    caffeineBanTimer = timer;
+                } else if ("alcohol".equals(timer.getType())) {
+                    alcoholBanTimer = timer;
+                }
+            }
+        }
+        
         // 응답을 ScheduleResponse.from()과 동일한 구조로 변환
-        return buildUpdateResponse(savedSchedule);
+        return buildUpdateResponse(savedSchedule, caffeineBanTimer, alcoholBanTimer);
     }
     
     /**
@@ -209,31 +253,6 @@ public class ScheduleService {
         
         scheduleRepository.delete(schedule);
         return scheduleId;
-    }
-
-    private ScheduleStatus resolveStatus(ScheduleRequest request) {
-        ScheduleStatus baseStatus = ScheduleStatus.SCHEDULED;
-
-        if (request.getPlan() != null) {
-            String planValue = request.getPlan().trim().toUpperCase();
-            if (!planValue.equals(ScheduleStatus.SCHEDULED.name()) && !planValue.equals(ScheduleStatus.CANCELLED.name())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "plan 값은 SCHEDULED 또는 CANCELLED 이어야 합니다");
-            }
-            baseStatus = ScheduleStatus.valueOf(planValue);
-        }
-
-        if (request.getStatus() != null) {
-            String statusValue = request.getStatus().trim().toUpperCase();
-            if (!statusValue.equals(ScheduleStatus.TAKEN.name()) && !statusValue.equals(ScheduleStatus.MISSED.name())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "status 값은 TAKEN 또는 MISSED 이어야 합니다");
-            }
-            if (baseStatus == ScheduleStatus.CANCELLED) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "취소된 일정은 복용 상태를 설정할 수 없습니다");
-            }
-            baseStatus = ScheduleStatus.valueOf(statusValue);
-        }
-
-        return baseStatus;
     }
 
     private boolean resolveAlarmEnabled(ScheduleRequest request) {
@@ -312,7 +331,7 @@ public class ScheduleService {
     /**
      * Schedule 엔티티를 ScheduleUpdateResponse로 변환 (ScheduleResponse.from()과 동일한 구조)
      */
-    private ScheduleUpdateResponse buildUpdateResponse(Schedule schedule) {
+    private ScheduleUpdateResponse buildUpdateResponse(Schedule schedule, BanTimerResponse caffeineBanTimer, BanTimerResponse alcoholBanTimer) {
         ScheduleStatus currentStatus = schedule.getStatus();
         String resolvedPlan = currentStatus == ScheduleStatus.CANCELLED ? ScheduleStatus.CANCELLED.name() : ScheduleStatus.SCHEDULED.name();
         String resolvedStatus = switch (currentStatus) {
@@ -335,7 +354,8 @@ public class ScheduleService {
                         .build())
                 .startDate(schedule.getStartDate())
                 .endDate(schedule.getEndDate())
+                .caffeineBanTimer(caffeineBanTimer)
+                .alcoholBanTimer(alcoholBanTimer)
                 .build();
     }
 }
-

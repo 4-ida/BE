@@ -24,6 +24,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -50,8 +51,8 @@ public class ScheduleController {
         
         ScheduleCreateResponse response = ScheduleCreateResponse.builder()
                 .message("복약 일정이 등록되었습니다.")
+                .scheduleId(scheduleResponse.getScheduleId())
                 .data(ScheduleCreateResponse.ScheduleData.builder()
-                        .scheduleId(scheduleResponse.getScheduleId())
                         .drugId(scheduleResponse.getDrugId())
                         .name(scheduleResponse.getName())
                         .dose(scheduleResponse.getDose())
@@ -73,6 +74,8 @@ public class ScheduleController {
     @lombok.AllArgsConstructor
     public static class ScheduleCreateResponse {
         private String message;
+        @Schema(description = "생성된 일정 ID", example = "101")
+        private Long scheduleId;
         private ScheduleData data;
         
         @lombok.Getter
@@ -80,7 +83,6 @@ public class ScheduleController {
         @lombok.NoArgsConstructor
         @lombok.AllArgsConstructor
         public static class ScheduleData {
-            private Long scheduleId;
             private Long drugId;
             private String name;
             private String dose;
