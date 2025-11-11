@@ -11,7 +11,8 @@ import lombok.Getter;
 @Builder
 public class UserProfileResponse {
 
-	private Long id;
+	@Schema(description = "사용자 ID", example = "1")
+	private Long userId;
 
 	@Schema(description = "이름", example = "홍길동")
 	private String name;
@@ -26,16 +27,16 @@ public class UserProfileResponse {
 	private CaffeineSensitivity caffeineSensitivity;
 
 	@Schema(description = "음주 패턴", example = "SOMETIMES", allowableValues = {"NONE","SOMETIMES","OFTEN"})
-	private DrinkingPattern drinkingPattern;
+	private DrinkingPattern alcoholPattern;
 
 	public static UserProfileResponse from(User user) {
 		return UserProfileResponse.builder()
-			.id(user.getId())
+			.userId(user.getId())
 			.name(user.getName())
 			.email(user.getEmail())
 			.profileImage(user.getProfileImage())
 			.caffeineSensitivity(user.getCaffeineSensitivity())
-			.drinkingPattern(user.getDrinkingPattern())
+			.alcoholPattern(user.getDrinkingPattern())
 			.build();
 	}
 }

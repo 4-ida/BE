@@ -1,23 +1,23 @@
 package com.pillmate.pillmate.Config;
 
+import java.util.Arrays;
+import java.util.List;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import java.util.Arrays;
-import java.util.List;
 
 import com.pillmate.pillmate.Security.JwtAuthenticationFilter;
 import com.pillmate.pillmate.Security.OAuth2.OAuth2FailureHandler;
 import com.pillmate.pillmate.Security.OAuth2.OAuth2SuccessHandler;
 import com.pillmate.pillmate.Security.OAuth2.OAuth2UserProviderRouter;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import lombok.RequiredArgsConstructor;
 
@@ -78,8 +78,14 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // 개발 환경: 모든 Origin 허용 (프로덕션에서는 특정 도메인만 허용)
-        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:8080", "http://127.0.0.1:8080", "http://127.0.0.1:3000"));
+        // 개발 및 프로덕션 환경 Origin 허용
+        configuration.setAllowedOrigins(List.of(
+            "http://localhost:3000", 
+            "http://localhost:8080", 
+            "http://127.0.0.1:8080", 
+            "http://127.0.0.1:3000",
+            "https://pillmate.lion.it.kr" // 프로덕션 도메인
+        ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

@@ -16,5 +16,5 @@ public class UserProfileUpdateRequest {
 	private CaffeineSensitivity caffeineSensitivity;
 
 	@Schema(description = "음주 패턴", example = "SOMETIMES", allowableValues = {"NONE","SOMETIMES","OFTEN"})
-	private DrinkingPattern drinkingPattern;
+	private DrinkingPattern alcoholPattern;
 }

@@ -12,7 +12,6 @@ import com.pillmate.pillmate.Config.JwtUtil;
 import com.pillmate.pillmate.DTO.LoginResponse;
 import com.pillmate.pillmate.Security.CustomUserDetails;
 import com.pillmate.pillmate.Service.UserService;
-import com.pillmate.pillmate.Service.UserService.LoginResult;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -38,6 +37,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         
         // 사용자 정보
         LoginResponse.UserInfo userInfo = LoginResponse.UserInfo.builder()
+                .id(userDetails.getId())
                 .email(userDetails.getEmail())
                 .name(userDetails.getUser().getName())
                 .build();

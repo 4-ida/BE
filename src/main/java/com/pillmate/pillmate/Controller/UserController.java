@@ -5,6 +5,7 @@ import com.pillmate.pillmate.DTO.UserProfileUpdateRequest;
 import com.pillmate.pillmate.DTO.BasicProfileUpdateRequest;
 import com.pillmate.pillmate.DTO.BasicProfileResponse;
 import com.pillmate.pillmate.Service.UserService;
+import com.pillmate.pillmate.Util.SecurityUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -15,10 +16,21 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "User", description = "사용자 관련 API")   // Swagger에서 보일 이름
-@RequestMapping("/api/auth/mypage/users")
+@RequestMapping("/api/v1/users")
 public class UserController {
 
 	private final UserService userService;
+
+	@Operation(summary = "현재 사용자 프로필 조회", description = "JWT 토큰으로 인증된 현재 사용자의 프로필을 조회합니다.")
+	@ApiResponses({
+		@ApiResponse(responseCode = "200", description = "조회 성공"),
+		@ApiResponse(responseCode = "401", description = "인증되지 않음")
+	})
+	@GetMapping("/profile/me")
+	public UserProfileResponse getMyProfile() {
+		Long userId = SecurityUtil.currentUserId();
+		return userService.getProfile(userId);
+	}
 
 	@Operation(summary = "프로필 조회", description = "userId로 사용자 프로필을 조회합니다.")
 	@ApiResponses({
@@ -28,6 +40,18 @@ public class UserController {
 	@GetMapping("/profile/{userId}")
 	public UserProfileResponse getProfile(@PathVariable Long userId) {
 		return userService.getProfile(userId);
+	}
+
+	@Operation(summary = "현재 사용자 프로필 수정", description = "JWT 토큰으로 인증된 현재 사용자의 프로필을 수정합니다.")
+	@ApiResponses({
+		@ApiResponse(responseCode = "200", description = "수정 성공"),
+		@ApiResponse(responseCode = "400", description = "요청 값이 잘못됨"),
+		@ApiResponse(responseCode = "401", description = "인증되지 않음")
+	})
+	@PutMapping("/profile/me")
+	public UserProfileResponse updateMyProfile(@RequestBody UserProfileUpdateRequest request) {
+		Long userId = SecurityUtil.currentUserId();
+		return userService.updateProfile(userId, request);
 	}
 
 	@Operation(summary = "프로필 수정", description = "userId로 사용자 프로필을 수정합니다.")
@@ -43,6 +67,17 @@ public class UserController {
 	) {
 		return userService.updateProfile(userId, request);
 	}
+	@Operation(summary = "현재 사용자 기본 프로필 조회", description = "JWT 토큰으로 인증된 현재 사용자의 기본 프로필(카페인/알코올/약/선호 음료)을 조회합니다.")
+	@ApiResponses({
+		@ApiResponse(responseCode = "200", description = "조회 성공"),
+		@ApiResponse(responseCode = "401", description = "인증되지 않음")
+	})
+	@GetMapping("/profile/me/basic")
+	public BasicProfileResponse getMyBasicProfile() {
+		Long userId = SecurityUtil.currentUserId();
+		return userService.getBasicProfile(userId);
+	}
+
 	@Operation(summary = "기본 프로필 조회", description = "섭취 등록 시 기본으로 사용할 카페인/알코올/약/선호 음료 정보를 조회합니다.")
 	@ApiResponses({
 		@ApiResponse(responseCode = "200", description = "조회 성공"),
@@ -51,6 +86,18 @@ public class UserController {
 	@GetMapping("/profile/{userId}/basic")
 	public BasicProfileResponse getBasicProfile(@PathVariable Long userId) {
 		return userService.getBasicProfile(userId);
+	}
+
+	@Operation(summary = "현재 사용자 기본 프로필 수정", description = "JWT 토큰으로 인증된 현재 사용자의 기본 프로필(카페인/알코올/약/선호 음료)을 수정합니다.")
+	@ApiResponses({
+		@ApiResponse(responseCode = "200", description = "수정 성공"),
+		@ApiResponse(responseCode = "400", description = "요청 값이 잘못됨"),
+		@ApiResponse(responseCode = "401", description = "인증되지 않음")
+	})
+	@PutMapping("/profile/me/basic")
+	public BasicProfileResponse updateMyBasicProfile(@RequestBody BasicProfileUpdateRequest request) {
+		Long userId = SecurityUtil.currentUserId();
+		return userService.updateBasicProfile(userId, request);
 	}
 
 	@Operation(summary = "기본 프로필 수정", description = "섭취 등록 시 기본으로 사용할 카페인/알코올/약/선호 음료 정보를 수정합니다.")

@@ -116,7 +116,7 @@ public class UserService {
             req.getName(),
             null,  // 프로필 이미지는 이번 DTO에 없으니까 변경 안 함
             req.getCaffeineSensitivity(),
-            req.getDrinkingPattern()
+            req.getAlcoholPattern()  // alcoholPattern을 drinkingPattern으로 매핑
         );
 
         return UserProfileResponse.from(user);
