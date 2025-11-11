@@ -21,7 +21,6 @@ public class SignUpResponse {
     @AllArgsConstructor
     public static class SignUpData {
         private UserInfo user;
-        private ConsentDto consent;
         private String token;  // JWT 토큰
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;

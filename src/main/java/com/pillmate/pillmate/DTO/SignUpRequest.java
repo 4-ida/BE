@@ -1,13 +1,12 @@
 package com.pillmate.pillmate.DTO;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,6 +17,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)  // 알 수 없는 필드(consent 등) 무시
 @Schema(description = "회원가입 요청")
 public class SignUpRequest {
     
@@ -39,11 +39,6 @@ public class SignUpRequest {
     @NotBlank(message = "비밀번호 확인은 필수입니다")
     @Schema(description = "비밀번호 확인", example = "Abcd1234!")
     private String passwordConfirm;
-    
-    @NotNull(message = "약관 동의 정보는 필수입니다")
-    @Valid
-    @Schema(description = "약관 동의 정보")
-    private ConsentDto consent;
     
     // 비밀번호 일치 검증
     @JsonIgnore

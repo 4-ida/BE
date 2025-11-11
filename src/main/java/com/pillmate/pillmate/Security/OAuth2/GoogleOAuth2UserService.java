@@ -50,9 +50,12 @@ public class GoogleOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
                 throw new OAuth2AuthenticationException("구글 인증 정보를 가져올 수 없습니다 (email 또는 providerId 누락)");
             }
             
+            // 이메일 정규화 (trim, 소문자 변환)
+            String normalizedEmail = email.trim().toLowerCase();
+            
             // name이 null이면 email 사용
             final String name = (nameAttribute == null || nameAttribute.trim().isEmpty()) 
-                    ? email.split("@")[0] 
+                    ? normalizedEmail.split("@")[0] 
                     : nameAttribute;
             
             if (nameAttribute == null || nameAttribute.trim().isEmpty()) {
@@ -77,7 +80,7 @@ public class GoogleOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
             }
             
             // 기존 사용자가 없으면 이메일로도 확인 (이미 가입된 구글 사용자인지 체크)
-            Optional<User> existingUserByEmail = userRepository.findByEmail(email);
+            Optional<User> existingUserByEmail = userRepository.findByEmail(normalizedEmail);
             if (existingUserByEmail.isPresent()) {
                 User existingEmailUser = existingUserByEmail.get();
                 log.info("이메일로 기존 사용자 발견 - id: {}, email: {}, provider: {}, providerId: {}", 
@@ -96,14 +99,14 @@ public class GoogleOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
                     return new CustomUserDetails(existingEmailUser);
                 } else {
                     // 다른 방식으로 가입된 사용자
-                    log.error("이미 다른 방식({})으로 가입된 이메일: {}", existingEmailUser.getProvider(), email);
+                    log.error("이미 다른 방식({})으로 가입된 이메일: {}", existingEmailUser.getProvider(), normalizedEmail);
                     throw new OAuth2AuthenticationException("이미 다른 방식으로 가입된 이메일입니다");
                 }
             }
             
             // 새 사용자 생성
-            log.info("새 사용자 생성 시작 - email: {}, name: {}", email, name);
-            User newUser = User.createSocialUser(email, name, provider, providerId);
+            log.info("새 사용자 생성 시작 - email: {}, name: {}", normalizedEmail, name);
+            User newUser = User.createSocialUser(normalizedEmail, name, provider, providerId);
             User savedUser = userRepository.save(newUser);
             log.info("새 사용자 생성 완료 - id: {}, email: {}", savedUser.getId(), savedUser.getEmail());
             return new CustomUserDetails(savedUser);

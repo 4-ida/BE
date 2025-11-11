@@ -53,6 +53,9 @@ public class KakaoOAuth2UserService implements OAuth2UserService<OAuth2UserReque
                 throw new OAuth2AuthenticationException("카카오 계정 이메일 동의가 필요합니다");
             }
 
+            // 이메일 정규화 (trim, 소문자 변환)
+            String normalizedEmail = email.trim().toLowerCase();
+
             final AuthProvider provider = AuthProvider.KAKAO;
 
             Optional<User> existingUserOpt = userRepository.findByProviderAndProviderId(provider, providerId);
@@ -62,7 +65,7 @@ public class KakaoOAuth2UserService implements OAuth2UserService<OAuth2UserReque
                 return new CustomUserDetails(existingUser);
             }
 
-            Optional<User> existingUserByEmail = userRepository.findByEmail(email);
+            Optional<User> existingUserByEmail = userRepository.findByEmail(normalizedEmail);
             if (existingUserByEmail.isPresent()) {
                 User existingEmailUser = existingUserByEmail.get();
                 log.info("이메일로 기존 사용자 발견 - id: {}, provider: {}", existingEmailUser.getId(),
@@ -75,7 +78,7 @@ public class KakaoOAuth2UserService implements OAuth2UserService<OAuth2UserReque
                 }
             }
 
-            User newUser = User.createSocialUser(email, name, provider, providerId);
+            User newUser = User.createSocialUser(normalizedEmail, name, provider, providerId);
             User savedUser = userRepository.save(newUser);
             log.info("새 카카오 사용자 생성 완료 - id: {}, email: {}", savedUser.getId(), savedUser.getEmail());
             return new CustomUserDetails(savedUser);
