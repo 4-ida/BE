@@ -87,9 +87,18 @@ public class ScheduleService {
      * @param scheduleId 일정 ID
      * @return 일정 정보
      */
+    @Transactional
     public ScheduleResponse getScheduleById(Long scheduleId) {
         Schedule schedule = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 일정입니다"));
+        
+        LocalDate today = LocalDate.now();
+        
+        // 날짜가 지난 SCHEDULED 일정을 자동으로 MISSED로 변경
+        if (schedule.getDate().isBefore(today) && schedule.getStatus() == ScheduleStatus.SCHEDULED) {
+            schedule.updateStatus(ScheduleStatus.MISSED);
+            scheduleRepository.save(schedule);
+        }
         
         return ScheduleResponse.from(schedule);
     }
@@ -100,8 +109,19 @@ public class ScheduleService {
      * @param date 조회할 날짜 (YYYY-MM-DD 형식)
      * @return 해당 날짜의 일정 목록
      */
+    @Transactional(readOnly = false)
     public List<ScheduleResponse> getSchedulesByDate(Long userId, LocalDate date) {
         List<Schedule> schedules = scheduleRepository.findByUserIdAndDate(userId, date);
+        LocalDate today = LocalDate.now();
+        
+        // 날짜가 지난 SCHEDULED 일정을 자동으로 MISSED로 변경
+        schedules.forEach(schedule -> {
+            if (schedule.getDate().isBefore(today) && schedule.getStatus() == ScheduleStatus.SCHEDULED) {
+                schedule.updateStatus(ScheduleStatus.MISSED);
+                scheduleRepository.save(schedule);
+            }
+        });
+        
         return schedules.stream()
                 .map(ScheduleResponse::from)
                 .collect(Collectors.toList());
@@ -114,6 +134,7 @@ public class ScheduleService {
      * @param to 종료 날짜 (YYYY-MM-DD 형식)
      * @return 해당 기간의 일정 목록
      */
+    @Transactional(readOnly = false)
     public List<ScheduleResponse> getSchedulesByDateRange(Long userId, LocalDate from, LocalDate to) {
         if (from.isAfter(to)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "시작일은 종료일보다 이전이어야 합니다");
@@ -124,6 +145,16 @@ public class ScheduleService {
         List<Schedule> userSchedules = schedules.stream()
                 .filter(s -> s.getUserId().equals(userId))
                 .collect(Collectors.toList());
+        
+        LocalDate today = LocalDate.now();
+        
+        // 날짜가 지난 SCHEDULED 일정을 자동으로 MISSED로 변경
+        userSchedules.forEach(schedule -> {
+            if (schedule.getDate().isBefore(today) && schedule.getStatus() == ScheduleStatus.SCHEDULED) {
+                schedule.updateStatus(ScheduleStatus.MISSED);
+                scheduleRepository.save(schedule);
+            }
+        });
         
         return userSchedules.stream()
                 .map(ScheduleResponse::from)
@@ -234,13 +265,29 @@ public class ScheduleService {
         // 상태 수정 및 금지 타이머 계산
         BanTimerResponse caffeineBanTimer = null;
         BanTimerResponse alcoholBanTimer = null;
+        ScheduleStatus previousStatus = schedule.getStatus();
         
-        if (request.getStatus() != null) {
+        // plan 처리 우선 (plan이 CANCELLED이면 상태를 CANCELLED로 변경)
+        boolean planCancelled = false;
+        if (request.getPlan() != null) {
+            String planValue = request.getPlan().trim().toUpperCase();
+            if ("CANCELLED".equals(planValue)) {
+                schedule.updateStatus(ScheduleStatus.CANCELLED);
+                planCancelled = true;
+            } else if ("SCHEDULED".equals(planValue)) {
+                // CANCELLED에서 SCHEDULED로 복구 (단, status가 TAKEN/MISSED가 아니면)
+                if (schedule.getStatus() == ScheduleStatus.CANCELLED) {
+                    schedule.updateStatus(ScheduleStatus.SCHEDULED);
+                }
+            }
+        }
+        
+        // 사용자가 명시적으로 status를 변경하려고 하는 경우
+        if (request.getStatus() != null && !planCancelled) {
             String statusValue = request.getStatus().trim().toUpperCase();
-            ScheduleStatus previousStatus = schedule.getStatus();
             ScheduleStatus newStatus = resolveStatus(statusValue);
             
-            // 상태 변경
+            // 상태 변경 (plan이 CANCELLED가 아닌 경우에만)
             schedule.updateStatus(newStatus);
             
             // TAKEN 상태로 변경된 경우 금지 타이머 계산
@@ -277,18 +324,17 @@ public class ScheduleService {
                     }
                 }
             }
-        }
-        
-        // plan 처리 (CANCELLED 상태로 변경)
-        if (request.getPlan() != null) {
-            String planValue = request.getPlan().trim().toUpperCase();
-            if ("CANCELLED".equals(planValue)) {
-                schedule.updateStatus(ScheduleStatus.CANCELLED);
-            } else if ("SCHEDULED".equals(planValue)) {
-                // CANCELLED에서 SCHEDULED로 복구 (단, status가 TAKEN/MISSED가 아니면)
-                if (schedule.getStatus() == ScheduleStatus.CANCELLED) {
-                    schedule.updateStatus(ScheduleStatus.SCHEDULED);
-                }
+        } else if (request.getStatus() == null && !planCancelled) {
+            // 사용자가 status를 명시적으로 변경하지 않은 경우
+            // 날짜가 지났고 SCHEDULED 상태이면 자동으로 MISSED로 변경
+            // 단, plan이 CANCELLED로 설정된 경우는 제외
+            LocalDate finalScheduleDate = request.getDate() != null ? request.getDate() : schedule.getDate();
+            LocalDate today = LocalDate.now();
+            
+            // 날짜가 오늘보다 과거이고, 현재 상태가 SCHEDULED이면 MISSED로 자동 변경
+            // CANCELLED 상태는 자동 변경하지 않음
+            if (finalScheduleDate.isBefore(today) && schedule.getStatus() == ScheduleStatus.SCHEDULED) {
+                schedule.updateStatus(ScheduleStatus.MISSED);
             }
         }
         
