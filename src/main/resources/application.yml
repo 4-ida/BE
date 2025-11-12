@@ -24,6 +24,7 @@ spring:
     properties:
       hibernate.format_sql: true
 
+
   # OAuth2 설정
   security:
     oauth2:
@@ -37,8 +38,8 @@ spring:
               - profile
               - email
           kakao:
-            client-id: ${KAKAO_CLIENT_ID:}
-            client-secret: ${KAKAO_CLIENT_SECRET:}
+            client-id: ${KAKAO_CLIENT_ID:dummy-naver-id}
+            client-secret: ${KAKAO_CLIENT_SECRET:dummy-naver-secret}
             client-authentication-method: client_secret_post
             authorization-grant-type: authorization_code
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
@@ -46,8 +47,8 @@ spring:
               - profile_nickname
               - account_email
           naver:
-            client-id: ${NAVER_CLIENT_ID:}
-            client-secret: ${NAVER_CLIENT_SECRET:}
+            client-id: ${NAVER_CLIENT_ID:dummy-naver-id}
+            client-secret: ${NAVER_CLIENT_SECRET:dummy-naver-secret}
             client-authentication-method: client_secret_post
             authorization-grant-type: authorization_code
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
@@ -85,10 +86,11 @@ logging:
 # Swagger(OpenAPI) 설정
 springdoc:
   swagger-ui:
-    path: /swagger.html
+    enabled: true
+    # path: /swagger.html
     try-it-out-enabled: true
   api-docs:
-    path: /api-docs
+    enabled: true
 
 external:
   mfds:

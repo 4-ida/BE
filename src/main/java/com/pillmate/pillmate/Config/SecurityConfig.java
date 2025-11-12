@@ -23,7 +23,7 @@ import com.pillmate.pillmate.Security.OAuth2.OAuth2UserProviderRouter;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 @Slf4j
 @Configuration
 @EnableWebSecurity
@@ -142,4 +142,16 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
-}
+
+    @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        return (web) -> web.ignoring().requestMatchers(
+        "/v3/api-docs/**",
+        "/swagger-ui/**",
+        "/swagger-ui.html",
+        "/swagger-resources/**",
+        "/webjars/**",
+        "/h2-console/**"
+    );
+    }
+}    

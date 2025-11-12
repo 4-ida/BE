@@ -89,5 +89,16 @@ public class DrugController {
     public ResponseEntity<BookmarkDeleteResponse> deleteBookmark(@PathVariable String drugId) {
         return ResponseEntity.ok(bookmarkService.removeBookmark(drugId));
     }
+
+    // 약 정보 상세 조회
+    // GET /api/v1/drug/details/{drugId}
+    @Operation(
+        summary = "약 정보 상세 조회",
+        description = "특정 약물의 상세 정보를 조회합니다."
+    )
+    @GetMapping("/details/{drugId}")
+    public ResponseEntity<DrugDetailResponse> getDrugDetails(@PathVariable String drugId) {
+        return ResponseEntity.ok(drugDetailService.fetchDrugDetail(drugId));
+    }
 }
 
