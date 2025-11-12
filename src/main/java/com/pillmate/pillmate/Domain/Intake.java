@@ -26,6 +26,8 @@ public class Intake {
 	@Enumerated(EnumType.STRING)
 	private IntakeType intakeType;  // "CAFFEINE" 이런 거
 
+	private Double abv;             // 알코올 도수(%) - ALCOHOL 타입일 때만 사용, 직접 입력 시 저장
+
 	private LocalDateTime createdAt;
 	public IntakeType getIntakeType() {
 		return this.intakeType;

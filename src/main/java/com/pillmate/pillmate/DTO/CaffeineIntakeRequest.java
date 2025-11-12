@@ -8,7 +8,6 @@ import lombok.Setter;
 @Getter
 @Setter
 public class CaffeineIntakeRequest {
-	private Long userId;
 	private String beverageName;     // 커피, 에너지드링크 ...
 	private Double caffeineMg;       // 입력한 mg
 	private Double intakeRatio;      // 0~100 (%)
