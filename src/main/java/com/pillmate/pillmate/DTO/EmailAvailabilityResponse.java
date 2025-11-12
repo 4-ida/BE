@@ -12,7 +12,6 @@ import lombok.NoArgsConstructor;
 public class EmailAvailabilityResponse {
 
     private String message;
-    private boolean success;
     private Data data;
 
     @Getter
@@ -24,4 +23,6 @@ public class EmailAvailabilityResponse {
         private boolean isAvailable;
     }
 }
+
+
 

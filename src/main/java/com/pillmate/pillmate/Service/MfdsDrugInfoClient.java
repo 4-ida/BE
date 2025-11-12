@@ -58,13 +58,28 @@ public class MfdsDrugInfoClient {
                     restTemplate.getForEntity(uri, MfdsEasyDrugResponse.class);
 
             MfdsEasyDrugResponse body = res.getBody();
-            if (body == null || body.getBody() == null) {
+            if (body == null) {
+                log.warn("MFDS search empty response body for q={}", itemName);
+                return Optional.empty();
+            }
+            
+            // Header null 체크 추가
+            if (body.getHeader() == null) {
+                log.warn("MFDS search response header is null for q={}", itemName);
+                return Optional.empty();
+            }
+            
+            // Body null 체크
+            if (body.getBody() == null) {
                 log.warn("MFDS search empty body for q={}", itemName);
                 return Optional.empty();
             }
-            if (!"00".equals(body.getHeader().getResultCode())) {
+            
+            // Result code 체크
+            String resultCode = body.getHeader().getResultCode();
+            if (resultCode == null || !"00".equals(resultCode)) {
                 log.warn("MFDS search error: code={}, msg={}",
-                        body.getHeader().getResultCode(), body.getHeader().getResultMsg());
+                        resultCode, body.getHeader().getResultMsg());
                 return Optional.empty();
             }
             return Optional.of(body);
@@ -103,13 +118,28 @@ public class MfdsDrugInfoClient {
                     restTemplate.getForEntity(uri, MfdsEasyDrugResponse.class);
 
             MfdsEasyDrugResponse body = response.getBody();
-            if (body == null || body.getBody() == null) {
+            if (body == null) {
+                log.warn("MFDS easy drug response body is null for itemSeq={}", itemSeq);
+                return Optional.empty();
+            }
+            
+            // Header null 체크 추가
+            if (body.getHeader() == null) {
+                log.warn("MFDS easy drug response header is null for itemSeq={}", itemSeq);
+                return Optional.empty();
+            }
+            
+            // Body null 체크
+            if (body.getBody() == null) {
                 log.warn("MFDS easy drug response body is empty for itemSeq={}", itemSeq);
                 return Optional.empty();
             }
-            if (!"00".equals(body.getHeader().getResultCode())) {
+            
+            // Result code 체크
+            String resultCode = body.getHeader().getResultCode();
+            if (resultCode == null || !"00".equals(resultCode)) {
                 log.warn("MFDS easy drug response error. code={}, message={}",
-                        body.getHeader().getResultCode(), body.getHeader().getResultMsg());
+                        resultCode, body.getHeader().getResultMsg());
                 return Optional.empty();
             }
 

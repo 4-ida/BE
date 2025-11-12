@@ -21,6 +21,7 @@ import com.pillmate.pillmate.DTO.EmailAvailabilityResponse;
 import com.pillmate.pillmate.Domain.User;
 import com.pillmate.pillmate.Service.UserService;
 import com.pillmate.pillmate.Service.UserService.LoginResult;
+import com.pillmate.pillmate.Util.EmailValidator;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -40,18 +41,37 @@ public class AuthController {
     
     @Operation(summary = "이메일 중복 확인", description = "이메일 형식과 중복 여부를 검증합니다.")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "사용 가능한 이메일"),
-        @ApiResponse(responseCode = "400", description = "잘못된 이메일 형식"),
-        @ApiResponse(responseCode = "409", description = "중복된 이메일")
+        @ApiResponse(responseCode = "200", description = "이메일 중복 검사 완료 (isAvailable으로 사용 가능 여부 확인)"),
+        @ApiResponse(responseCode = "400", description = "잘못된 이메일 형식")
     })
     @GetMapping("/signup/check-email")
-    public ResponseEntity<EmailAvailabilityResponse> checkEmail(@RequestParam("email") String email) {
-        String normalized = email == null ? null : email.trim();
+    public ResponseEntity<?> checkEmail(@RequestParam("email") String email) {
+        // 이메일 정규화 (trim, 소문자 변환) - UserService와 일관성 유지
+        String normalized = EmailValidator.normalize(email);
+        
+        // 이메일이 비어있거나 null인 경우
+        if (normalized == null || normalized.isBlank()) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("message", "이메일은 필수입니다");
+            errorResponse.put("error", "Bad Request");
+            errorResponse.put("status", HttpStatus.BAD_REQUEST.value());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
+        
+        // 이메일 형식 검증
+        if (!EmailValidator.isValid(normalized)) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("message", "올바른 이메일 형식이 아닙니다");
+            errorResponse.put("error", "Bad Request");
+            errorResponse.put("status", HttpStatus.BAD_REQUEST.value());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
+        
+        // 이메일 중복 확인
         boolean available = userService.checkEmailAvailability(normalized);
 
         EmailAvailabilityResponse response = EmailAvailabilityResponse.builder()
-                .message("사용 가능한 이메일입니다.")
-                .success(true)
+                .message(available ? "사용 가능한 이메일입니다" : "이미 사용 중인 이메일입니다")
                 .data(EmailAvailabilityResponse.Data.builder()
                         .email(normalized)
                         .isAvailable(available)
