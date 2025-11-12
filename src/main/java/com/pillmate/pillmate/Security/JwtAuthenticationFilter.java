@@ -26,6 +26,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         
+        // 회원가입, 로그인, Swagger 등 인증 불필요한 경로는 필터 스킵
+        String requestPath = request.getRequestURI();
+        if (requestPath.startsWith("/api/v1/signup") || 
+            requestPath.startsWith("/api/v1/auth/login") ||
+            requestPath.startsWith("/api/auth/") ||
+            requestPath.startsWith("/oauth2/") ||
+            requestPath.startsWith("/login/") ||
+            requestPath.startsWith("/swagger-ui") ||
+            requestPath.startsWith("/v3/api-docs") ||
+            requestPath.startsWith("/swagger-resources") ||
+            requestPath.startsWith("/webjars") ||
+            requestPath.startsWith("/h2-console")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+        
         String authHeader = request.getHeader("Authorization");
         
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -51,4 +67,5 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 }
+
 
