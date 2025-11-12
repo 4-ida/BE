@@ -21,9 +21,12 @@ import com.pillmate.pillmate.Repository.DrugManualOverrideRepository;
 import com.pillmate.pillmate.Service.dto.MfdsEasyDrugResponse.MfdsEasyDrugItem;
 import com.pillmate.pillmate.Service.dto.MfdsIngredientResponse;
 import com.pillmate.pillmate.Service.dto.MfdsPermissionResponse;
-
+import java.time.Instant;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DrugDetailService {
@@ -62,11 +65,11 @@ public class DrugDetailService {
                 .orElse(ingredients);
 
         Optional<MfdsPermissionResponse.PermissionItem> permissionOpt = mfdsDrugPermissionClient.fetchPermission(drugId);
-        String resolvedRxType = firstNonBlank(
-                item.getEtcOtcName(),
-                permissionOpt.map(MfdsPermissionResponse.PermissionItem::getResolvedSpcltyPblc).orElse(null),
-                permissionOpt.map(MfdsPermissionResponse.PermissionItem::getResolvedEtcOtcCode).orElse(null)
-        );
+        String resolvedRxType = normalizeRxType(firstNonBlank(
+            item.getEtcOtcName(),
+            permissionOpt.map(MfdsPermissionResponse.PermissionItem::getResolvedSpcltyPblc).orElse(null),
+            permissionOpt.map(MfdsPermissionResponse.PermissionItem::getResolvedEtcOtcCode).orElse(null)
+        ));
 
         String cautions = joinSections(
                 item.getAtpnWarnQesitm(),
@@ -75,6 +78,8 @@ public class DrugDetailService {
                 item.getSeQesitm(),
                 item.getDepositMethodQesitm()
         );
+
+
 
         Map<String, String> summary = buildCautionSummary(cautions);
         if (override != null) {
@@ -86,17 +91,50 @@ public class DrugDetailService {
                 .drugId(item.getItemSeq())
                 .name(item.getItemName())
                 .entpName(item.getEntpName())
-                .rxType(withFallback(resolvedRxType, "공식 데이터 미제공"))
-                .strength(withFallback(resolvedStrength, "공식 데이터 미제공"))
-                .ingredients(resolvedIngredients.isEmpty() ? List.of("공식 데이터 미제공") : resolvedIngredients)
+                .rxType(withFallback(resolvedRxType, ""))
+                .strength(withFallback(resolvedStrength, ""))
+                .ingredients(resolvedIngredients.isEmpty() ? List.of() : resolvedIngredients)
                 .efficacy(clean(item.getEfcyQesitm()))
                 .dosage(clean(item.getUseMethodQesitm()))
                 .cautions(clean(cautions))
                 .cautionsSummary(summary)
                 .images(extractImages(item.getItemImage()))
-                .retrievedAt(resolveRetrievedAt(item).orElse(OffsetDateTime.now(KST)))
+                .retrievedAt(resolveRetrievedAtInstant(item).orElseGet(Instant::now))
                 .build();
+
+
+                
     }
+
+    // ✅ "ETC", "OTC" 등 코드값을 사람이 읽을 수 있는 형태로 변환
+    private String normalizeRxType(String value) {
+        if (!StringUtils.hasText(value)) return "";
+        String v = value.trim().toUpperCase(Locale.ROOT);
+        return switch (v) {
+            case "ETC", "1" -> "전문";
+            case "OTC", "2" -> "일반";
+            default -> value; // 이미 한글이면 그대로
+        };
+    }
+
+    // ✅ 명세서 ISO-8601(UTC) 대응
+    private Optional<Instant> resolveRetrievedAtInstant(MfdsEasyDrugItem item) {
+        String updateDe = item.getUpdateDe();
+        if (StringUtils.hasText(updateDe)) return parseDateToInstant(updateDe);
+        String openDe = item.getOpenDe();
+        if (StringUtils.hasText(openDe)) return parseDateToInstant(openDe);
+        return Optional.empty();
+    }
+
+    private Optional<Instant> parseDateToInstant(String value) {
+        try {
+            LocalDate date = LocalDate.parse(value.trim(), BASIC_DATE);
+            return Optional.of(date.atStartOfDay(KST).toInstant());
+        } catch (Exception ignored) {
+            return Optional.empty();
+        }
+    }
+
 
     private String resolveStrength(List<MfdsIngredientResponse.Item> items) {
         if (items == null || items.isEmpty()) {
@@ -161,8 +199,10 @@ public class DrugDetailService {
     }
 
     private String withFallback(String value, String fallback) {
-        return StringUtils.hasText(value) ? value : fallback;
+    // 명세 준수: 값이 없으면 fallback이 아니라 빈 문자열 반환
+    return StringUtils.hasText(value) ? value.trim() : "";
     }
+
 
     private String joinSections(String... sections) {
         StringBuilder builder = new StringBuilder();
