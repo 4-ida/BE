@@ -46,7 +46,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/signup", "/api/v1/signup/**").permitAll() // 회원가입 및 이메일 중복 확인 허용
                 .requestMatchers("/api/v1/auth/login").permitAll() // 로그인 허용
                 .requestMatchers("/oauth2/**", "/login/**").permitAll() // OAuth2 소셜 로그인 관련 요청 허용
-                .requestMatchers("/swagger.html", "/swagger-ui/**", "/api-docs/**").permitAll() // Swagger 허용
+                .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll() // Swagger 허용
                 .requestMatchers("/h2-console/**").permitAll() // H2 콘솔 허용 (개발용)
                 .anyRequest().authenticated() // 나머지는 인증 필요 (캘린더 일정 API 포함)
             )

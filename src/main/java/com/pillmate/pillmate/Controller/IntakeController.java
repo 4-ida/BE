@@ -3,6 +3,7 @@ package com.pillmate.pillmate.Controller;
 import com.pillmate.pillmate.DTO.*;
 import com.pillmate.pillmate.Domain.Intake;
 import com.pillmate.pillmate.Service.IntakeService;
+import com.pillmate.pillmate.Util.SecurityUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -39,12 +40,13 @@ public class IntakeController {
 	// 2️⃣ 카페인 전용 섭취 등록
 	// ===========================
 	@Operation(summary = "카페인 섭취 등록",
-		description = "카페인 섭취량(mg), 섭취비율(%), 섭취시각으로 카페인 데이터를 등록합니다.")
+		description = "카페인 섭취량(mg), 섭취비율(%), 섭취시각으로 카페인 데이터를 등록합니다. JWT 토큰으로 인증된 사용자의 기록으로 저장됩니다.")
 	@PostMapping("/caffeine")
 	public ResponseEntity<IntakeResponse> createCaffeineIntake(
 		@RequestBody CaffeineIntakeRequest request
 	) {
-		IntakeResponse res = intakeService.createCaffeineIntake(request);
+		Long userId = SecurityUtil.currentUserId();
+		IntakeResponse res = intakeService.createCaffeineIntake(userId, request);
 		return ResponseEntity.status(201).body(res);
 	}
 
@@ -52,12 +54,13 @@ public class IntakeController {
 	// 3️⃣ 알코올 전용 섭취 등록
 	// ===========================
 	@Operation(summary = "알코올 섭취 등록",
-		description = "술 종류, 기본용량, 잔수, 섭취시각으로 알코올 데이터를 등록합니다.")
+		description = "술 종류, 기본용량, 잔수, 섭취시각으로 알코올 데이터를 등록합니다. JWT 토큰으로 인증된 사용자의 기록으로 저장됩니다.")
 	@PostMapping("/alcohol")
 	public ResponseEntity<IntakeResponse> createAlcoholIntake(
 		@RequestBody AlcoholIntakeRequest request
 	) {
-		IntakeResponse res = intakeService.createAlcoholIntake(request);
+		Long userId = SecurityUtil.currentUserId();
+		IntakeResponse res = intakeService.createAlcoholIntake(userId, request);
 		return ResponseEntity.status(201).body(res);
 	}
 
@@ -94,5 +97,59 @@ public class IntakeController {
 	public ResponseEntity<Void> deleteIntakeByUser(@PathVariable Long userId) {
 		intakeService.deleteByUser(userId);
 		return ResponseEntity.noContent().build();
+	}
+
+	// ===========================
+	// 7️⃣ 카페인 잔존 타이머 조회
+	// ===========================
+	@Operation(summary = "카페인 잔존 타이머 조회",
+		description = "카페인 섭취 후 약 복용 가능 시간을 계산합니다. 사용자의 카페인 민감도와 복용 중인 약물의 보정계수가 적용됩니다.")
+	@ApiResponses({
+		@ApiResponse(responseCode = "200", description = "조회 성공"),
+		@ApiResponse(responseCode = "400", description = "요청 데이터가 잘못됨"),
+		@ApiResponse(responseCode = "404", description = "섭취 기록을 찾을 수 없음")
+	})
+	@GetMapping("/caffeine/{intakeId}/timer")
+	public ResponseEntity<ResidualTimerResponse> getCaffeineResidualTimer(
+		@PathVariable Long intakeId
+	) {
+		Long userId = SecurityUtil.currentUserId();
+		ResidualTimerResponse response = intakeService.calculateCaffeineResidualTimer(userId, intakeId);
+		return ResponseEntity.ok(response);
+	}
+
+	// ===========================
+	// 8️⃣ 알코올 잔존 타이머 조회
+	// ===========================
+	@Operation(summary = "알코올 잔존 타이머 조회",
+		description = "알코올 섭취 후 약 복용 가능 시간을 계산합니다. 사용자의 음주 패턴과 복용 중인 약물의 보정계수가 적용됩니다.")
+	@ApiResponses({
+		@ApiResponse(responseCode = "200", description = "조회 성공"),
+		@ApiResponse(responseCode = "400", description = "요청 데이터가 잘못됨"),
+		@ApiResponse(responseCode = "404", description = "섭취 기록을 찾을 수 없음")
+	})
+	@GetMapping("/alcohol/{intakeId}/timer")
+	public ResponseEntity<ResidualTimerResponse> getAlcoholResidualTimer(
+		@PathVariable Long intakeId
+	) {
+		Long userId = SecurityUtil.currentUserId();
+		ResidualTimerResponse response = intakeService.calculateAlcoholResidualTimer(userId, intakeId);
+		return ResponseEntity.ok(response);
+	}
+
+	// ===========================
+	// 9️⃣ 활성 타이머 리스트 조회
+	// ===========================
+	@Operation(summary = "활성 타이머 리스트 조회",
+		description = "사용자의 카페인/알코올 최신 섭취 기록 중 활성 타이머(아직 복약 불가능한 상태)를 조회합니다. 카페인과 알코올 각각 최신 1개씩 반환됩니다.")
+	@ApiResponses({
+		@ApiResponse(responseCode = "200", description = "조회 성공"),
+		@ApiResponse(responseCode = "401", description = "인증되지 않음")
+	})
+	@GetMapping("/active-timers")
+	public ResponseEntity<ActiveTimerListResponse> getActiveTimers() {
+		Long userId = SecurityUtil.currentUserId();
+		ActiveTimerListResponse response = intakeService.getActiveTimers(userId);
+		return ResponseEntity.ok(response);
 	}
 }
