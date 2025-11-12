@@ -1,11 +1,10 @@
 package com.pillmate.pillmate.Service;
 
+import java.util.Optional;
 import java.util.regex.Pattern;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import com.pillmate.pillmate.DTO.BasicProfileResponse;
 import com.pillmate.pillmate.DTO.BasicProfileUpdateRequest;
@@ -19,8 +18,10 @@ import com.pillmate.pillmate.Repository.UserRepository;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -76,11 +77,23 @@ public class UserService {
     public boolean checkEmailAvailability(String email) {
         // 이메일 정규화 (trim, 소문자 변환)
         String normalized = email == null ? null : email.trim().toLowerCase();
+        log.debug("Checking email availability: original={}, normalized={}", email, normalized);
+        
         if (normalized == null || normalized.isBlank() || !EMAIL_PATTERN.matcher(normalized).matches()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "유효하지 않은 이메일 형식입니다.");
+            log.debug("Email validation failed: normalized={}", normalized);
+            return false;
         }
-        if (userRepository.existsByEmail(normalized)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다.");
+        
+        boolean exists = userRepository.existsByEmail(normalized);
+        log.debug("Email exists check result: normalized={}, exists={}", normalized, exists);
+        
+        if (exists) {
+            // 디버깅을 위해 실제 DB에 저장된 이메일 확인
+            Optional<User> existingUser = userRepository.findByEmail(normalized);
+            if (existingUser.isPresent()) {
+                log.warn("Email already exists: normalized={}, stored_email={}", normalized, existingUser.get().getEmail());
+            }
+            return false;
         }
         return true;
     }

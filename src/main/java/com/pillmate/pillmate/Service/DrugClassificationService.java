@@ -72,6 +72,7 @@ public class DrugClassificationService {
      */
     public DrugCategory classifyDrug(String itemSeq) {
         if (!StringUtils.hasText(itemSeq)) {
+            log.debug("약물 분류 - itemSeq가 비어있어서 GENERAL 반환");
             return DrugCategory.GENERAL;
         }
 
@@ -80,7 +81,7 @@ public class DrugClassificationService {
                 mfdsDrugPermissionClient.fetchPermission(itemSeq);
 
         if (permissionOpt.isEmpty()) {
-            log.warn("Failed to fetch permission data for itemSeq={}, using default category", itemSeq);
+            log.warn("약물 분류 실패 - itemSeq={}, 식약처 API 조회 실패, GENERAL 반환", itemSeq);
             return DrugCategory.GENERAL;
         }
 
@@ -89,11 +90,15 @@ public class DrugClassificationService {
         String itemName = permission.getResolvedItemName();
         String mainIngredient = permission.getResolvedMainIngredient();
 
+        log.debug("약물 분류 - itemSeq: {}, itemName: {}, mainIngredient: {}, atcCode: {}", 
+            itemSeq, itemName, mainIngredient, atcCode);
+
         // 2. ATC 코드 기반 분류
         if (StringUtils.hasText(atcCode)) {
             DrugCategory categoryByAtc = classifyByAtcCode(atcCode);
             if (categoryByAtc != DrugCategory.GENERAL) {
-                log.debug("Classified drug {} as {} by ATC code: {}", itemSeq, categoryByAtc.getName(), atcCode);
+                log.debug("약물 분류 완료 - itemSeq: {}, ATC 코드 기반으로 {} 분류 (보정계수: {})", 
+                    itemSeq, categoryByAtc.getName(), categoryByAtc.getCaffeineAdjustmentFactor());
                 return categoryByAtc;
             }
         }
@@ -101,11 +106,13 @@ public class DrugClassificationService {
         // 3. 약물명/성분명 키워드 기반 분류
         DrugCategory categoryByName = classifyByNameAndIngredient(itemName, mainIngredient);
         if (categoryByName != DrugCategory.GENERAL) {
-            log.debug("Classified drug {} as {} by name/ingredient", itemSeq, categoryByName.getName());
+            log.debug("약물 분류 완료 - itemSeq: {}, 약물명/성분명 기반으로 {} 분류 (보정계수: {})", 
+                itemSeq, categoryByName.getName(), categoryByName.getCaffeineAdjustmentFactor());
             return categoryByName;
         }
 
         // 4. 기본값 반환
+        log.debug("약물 분류 완료 - itemSeq: {}, 기본값 GENERAL 반환 (보정계수: 1.0)", itemSeq);
         return DrugCategory.GENERAL;
     }
 

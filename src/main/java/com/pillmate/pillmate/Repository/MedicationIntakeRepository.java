@@ -15,3 +15,4 @@ public interface MedicationIntakeRepository extends JpaRepository<MedicationInta
 }
 
 
+

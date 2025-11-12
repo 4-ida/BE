@@ -3,15 +3,14 @@ package com.pillmate.pillmate.Config;
 import java.util.Arrays;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.util.StringUtils;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -34,25 +33,23 @@ public class SecurityConfig {
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final OAuth2FailureHandler oAuth2FailureHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    
-    @Value("${spring.security.oauth2.client.registration.google.client-id:}")
-    private String googleClientId;
-    
-    @Value("${spring.security.oauth2.client.registration.kakao.client-id:}")
-    private String kakaoClientId;
-    
-    @Value("${spring.security.oauth2.client.registration.naver.client-id:}")
-    private String naverClientId;
+    private final ClientRegistrationRepository clientRegistrationRepository;
     
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         // OAuth2 클라이언트가 설정되어 있는지 확인
-        boolean oauth2Enabled = isOAuth2Enabled();
+        boolean oauth2Enabled = clientRegistrationRepository.findByRegistrationId("google") != null ||
+                               clientRegistrationRepository.findByRegistrationId("kakao") != null ||
+                               clientRegistrationRepository.findByRegistrationId("naver") != null;
         
         log.info("OAuth2 설정 상태:");
-        log.info("  Google Client ID: {}", googleClientId != null && !googleClientId.isEmpty() ? googleClientId.substring(0, Math.min(20, googleClientId.length())) + "..." : "없음");
-        log.info("  Kakao Client ID: {}", kakaoClientId != null && !kakaoClientId.isEmpty() ? kakaoClientId.substring(0, Math.min(20, kakaoClientId.length())) + "..." : "없음");
-        log.info("  Naver Client ID: {}", naverClientId != null && !naverClientId.isEmpty() ? naverClientId : "없음");
+        if (oauth2Enabled) {
+            log.info("  Google: {}", clientRegistrationRepository.findByRegistrationId("google") != null ? "활성화" : "비활성화");
+            log.info("  Kakao: {}", clientRegistrationRepository.findByRegistrationId("kakao") != null ? "활성화" : "비활성화");
+            log.info("  Naver: {}", clientRegistrationRepository.findByRegistrationId("naver") != null ? "활성화" : "비활성화");
+        } else {
+            log.info("  OAuth2 클라이언트가 설정되어 있지 않습니다.");
+        }
         log.info("  OAuth2 활성화: {}", oauth2Enabled);
         
         http
@@ -96,7 +93,7 @@ public class SecurityConfig {
                 .failureHandler(oAuth2FailureHandler) // 오류 처리
             );
         } else {
-            log.warn("OAuth2 클라이언트가 설정되지 않아 OAuth2 로그인이 비활성화됩니다.");
+            log.info("OAuth2 클라이언트 ID가 설정되어 있지 않아 OAuth2 로그인이 비활성화됩니다.");
         }
         
         http
@@ -107,17 +104,6 @@ public class SecurityConfig {
         return http.build();
     }
     
-    /**
-     * OAuth2 클라이언트가 설정되어 있는지 확인
-     * 클라이언트 ID가 비어있거나 "disabled"가 아닐 때만 활성화
-     */
-    private boolean isOAuth2Enabled() {
-        boolean googleEnabled = StringUtils.hasText(googleClientId) && !"disabled".equals(googleClientId);
-        boolean kakaoEnabled = StringUtils.hasText(kakaoClientId) && !"disabled".equals(kakaoClientId);
-        boolean naverEnabled = StringUtils.hasText(naverClientId) && !"disabled".equals(naverClientId);
-        
-        return googleEnabled || kakaoEnabled || naverEnabled;
-    }
     
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
