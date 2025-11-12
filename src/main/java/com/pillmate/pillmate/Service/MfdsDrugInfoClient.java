@@ -32,6 +32,12 @@ public class MfdsDrugInfoClient {
 
     /** 제품명으로 검색 (페이지네이션) */
     public Optional<MfdsEasyDrugResponse> searchByName(String itemName, int page, int size) {
+        // API 키 검증
+        if (!StringUtils.hasText(properties.getServiceKey())) {
+            log.error("MFDS_SERVICE_KEY is not set! Please set the environment variable MFDS_SERVICE_KEY");
+            return Optional.empty();
+        }
+
         int pageNo   = Math.max(1, page + 1);
         int numOfRows = Math.max(1, size);
 
@@ -71,6 +77,12 @@ public class MfdsDrugInfoClient {
     /** 품목기준코드(=itemSeq)로 단건 조회 */
     public Optional<MfdsEasyDrugItem> fetchEasyDrug(String itemSeq) {
         if (!StringUtils.hasText(itemSeq)) {
+            return Optional.empty();
+        }
+
+        // API 키 검증
+        if (!StringUtils.hasText(properties.getServiceKey())) {
+            log.error("MFDS_SERVICE_KEY is not set! Please set the environment variable MFDS_SERVICE_KEY");
             return Optional.empty();
         }
 

@@ -6,6 +6,7 @@ import java.util.Optional;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -26,6 +27,12 @@ public class MfdsDrugPermissionClient {
     private final MfdsApiProperties properties;
 
     public Optional<MfdsPermissionResponse.PermissionItem> fetchPermission(String itemSeq) {
+        // API 키 검증
+        if (!StringUtils.hasText(properties.getServiceKey())) {
+            log.error("MFDS_SERVICE_KEY is not set! Please set the environment variable MFDS_SERVICE_KEY");
+            return Optional.empty();
+        }
+
         URI uri = UriComponentsBuilder
                 .fromHttpUrl(properties.getBaseUrl())
                 .path(PERMISSION_PATH)
@@ -64,4 +71,6 @@ public class MfdsDrugPermissionClient {
         }
     }
 }
+
+
 
