@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -25,6 +26,12 @@ public class MfdsDrugIngredientClient {
     private final MfdsApiProperties properties;
 
     public List<MfdsIngredientResponse.Item> fetchIngredients(String itemSeq) {
+        // API 키 검증
+        if (!StringUtils.hasText(properties.getServiceKey())) {
+            log.error("MFDS_SERVICE_KEY is not set! Please set the environment variable MFDS_SERVICE_KEY");
+            return List.of();
+        }
+
         URI uri = UriComponentsBuilder
                 .fromHttpUrl(properties.getBaseUrl())
                 .path(INGREDIENT_PATH)
@@ -59,4 +66,6 @@ public class MfdsDrugIngredientClient {
         }
     }
 }
+
+
 

@@ -3,6 +3,7 @@ package com.pillmate.pillmate.Config;
 import java.util.Arrays;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -10,6 +11,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.util.StringUtils;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -20,7 +22,9 @@ import com.pillmate.pillmate.Security.OAuth2.OAuth2SuccessHandler;
 import com.pillmate.pillmate.Security.OAuth2.OAuth2UserProviderRouter;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -31,8 +35,26 @@ public class SecurityConfig {
     private final OAuth2FailureHandler oAuth2FailureHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     
+    @Value("${spring.security.oauth2.client.registration.google.client-id:}")
+    private String googleClientId;
+    
+    @Value("${spring.security.oauth2.client.registration.kakao.client-id:}")
+    private String kakaoClientId;
+    
+    @Value("${spring.security.oauth2.client.registration.naver.client-id:}")
+    private String naverClientId;
+    
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        // OAuth2 클라이언트가 설정되어 있는지 확인
+        boolean oauth2Enabled = isOAuth2Enabled();
+        
+        log.info("OAuth2 설정 상태:");
+        log.info("  Google Client ID: {}", googleClientId != null && !googleClientId.isEmpty() ? googleClientId.substring(0, Math.min(20, googleClientId.length())) + "..." : "없음");
+        log.info("  Kakao Client ID: {}", kakaoClientId != null && !kakaoClientId.isEmpty() ? kakaoClientId.substring(0, Math.min(20, kakaoClientId.length())) + "..." : "없음");
+        log.info("  Naver Client ID: {}", naverClientId != null && !naverClientId.isEmpty() ? naverClientId : "없음");
+        log.info("  OAuth2 활성화: {}", oauth2Enabled);
+        
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource())) // CORS 설정 추가
             .csrf(csrf -> csrf.disable()) // CSRF 비활성화 (API 개발용)
@@ -46,7 +68,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/signup", "/api/v1/signup/**").permitAll() // 회원가입 및 이메일 중복 확인 허용
                 .requestMatchers("/api/v1/auth/login").permitAll() // 로그인 허용
                 .requestMatchers("/oauth2/**", "/login/**").permitAll() // OAuth2 소셜 로그인 관련 요청 허용
-                .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll() // Swagger 허용
+                .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll() // Swagger 허용 (개발/프로덕션 모두)
                 .requestMatchers("/h2-console/**").permitAll() // H2 콘솔 허용 (개발용)
                 .anyRequest().authenticated() // 나머지는 인증 필요 (캘린더 일정 API 포함)
             )
@@ -61,19 +83,40 @@ public class SecurityConfig {
                     response.setContentType("application/json;charset=UTF-8");
                     response.getWriter().write("{\"error\":\"Forbidden\",\"message\":\"접근 권한이 없습니다.\"}");
                 })
-            )
-            .oauth2Login(oauth2 -> oauth2
+            );
+        
+        // OAuth2 클라이언트가 설정되어 있을 때만 OAuth2 로그인 활성화
+        if (oauth2Enabled) {
+            log.info("OAuth2 로그인이 활성화됩니다.");
+            http.oauth2Login(oauth2 -> oauth2
                 .userInfoEndpoint(userInfo -> userInfo
                     .userService(oAuth2UserProviderRouter) // 사용자 정보 받아오기
                 )
                 .successHandler(oAuth2SuccessHandler) // JWT 발급 및 응답
                 .failureHandler(oAuth2FailureHandler) // 오류 처리
-            )
+            );
+        } else {
+            log.warn("OAuth2 클라이언트가 설정되지 않아 OAuth2 로그인이 비활성화됩니다.");
+        }
+        
+        http
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class) // JWT 필터 추가
             .formLogin(form -> form.disable()) // 기본 로그인 폼 비활성화
             .httpBasic(basic -> basic.disable()); // HTTP Basic 인증 비활성화
         
         return http.build();
+    }
+    
+    /**
+     * OAuth2 클라이언트가 설정되어 있는지 확인
+     * 클라이언트 ID가 비어있거나 "disabled"가 아닐 때만 활성화
+     */
+    private boolean isOAuth2Enabled() {
+        boolean googleEnabled = StringUtils.hasText(googleClientId) && !"disabled".equals(googleClientId);
+        boolean kakaoEnabled = StringUtils.hasText(kakaoClientId) && !"disabled".equals(kakaoClientId);
+        boolean naverEnabled = StringUtils.hasText(naverClientId) && !"disabled".equals(naverClientId);
+        
+        return googleEnabled || kakaoEnabled || naverEnabled;
     }
     
     @Bean
