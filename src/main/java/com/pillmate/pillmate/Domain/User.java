@@ -115,8 +115,8 @@ public class User {
         String profileImage,
         CaffeineSensitivity caffeineSensitivity,
         DrinkingPattern drinkingPattern) {
-        if (name != null) this.name = name;
-        if (profileImage != null) this.profileImage = profileImage;
+        if (name != null && !name.trim().isEmpty()) this.name = name.trim();
+        if (profileImage != null && !profileImage.trim().isEmpty()) this.profileImage = profileImage.trim();
         if (caffeineSensitivity != null) this.caffeineSensitivity = caffeineSensitivity;
         if (drinkingPattern != null) this.drinkingPattern = drinkingPattern;
     }
