@@ -22,6 +22,8 @@ import lombok.RequiredArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -37,39 +39,29 @@ public class ScheduleService {
     
     @Transactional
     public ScheduleResponse createSchedule(Long userId, ScheduleRequest request) {
-        // 복용 날짜와 알림 시각 검증
-        if (request.getAlarmAt() != null && !request.getDate().equals(request.getAlarmAt().toLocalDate())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "복용 날짜와 알림 시각의 날짜가 일치해야 합니다");
-        }
-        
         DrugDetailResponse drugDetail = fetchDrugDetailOrThrow(request.getDrugId());
         String resolvedDrugName = resolveDrugName(request, drugDetail);
         boolean alarmEnabled = resolveAlarmEnabled(request);
         
         // 등록 시에는 항상 SCHEDULED로 저장 (기본값)
         ScheduleStatus resolvedStatus = ScheduleStatus.SCHEDULED;
-
-        // 복용 기간 검증 (startDate, endDate가 있으면)
-        if (request.getStartDate() != null && request.getEndDate() != null) {
-            if (request.getStartDate().isAfter(request.getEndDate())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "복용 시작일은 종료일보다 이전이어야 합니다");
-            }
-            // date가 기간 내에 있는지 검증 (선택사항)
-            if (request.getDate().isBefore(request.getStartDate()) || request.getDate().isAfter(request.getEndDate())) {
-                // 경고만 하고 계속 진행 (date가 기간 밖에 있어도 허용)
-            }
-        }
         
-        // 일정 생성 (단일 날짜, 복용 기간은 표시용)
+        // date와 time을 합쳐서 LocalDateTime 생성
+        LocalDateTime scheduleDateTime = request.getDate().atTime(request.getTime());
+        
+        // alarmAt을 복용 시각에서 30분 전으로 자동 계산
+        LocalDateTime alarmAt = scheduleDateTime.minus(30, ChronoUnit.MINUTES);
+        
+        // 일정 생성 (단일 날짜만 사용, 복용 기간 제거)
         Schedule schedule = Schedule.builder()
                 .userId(userId)
                 .drugId(request.getDrugId())
                 .drugName(resolvedDrugName)
                 .dose(request.getDose())
-                .date(request.getDate())
-                .alarmAt(request.getAlarmAt())
-                .startDate(request.getStartDate())
-                .endDate(request.getEndDate())
+                .date(scheduleDateTime)
+                .alarmAt(alarmAt)
+                .startDate(null)  // 복용 기간 제거
+                .endDate(null)    // 복용 기간 제거
                 .memo(request.getMemo())
                 .alarmEnabled(alarmEnabled)
                 .repeatRule(null)
@@ -92,10 +84,10 @@ public class ScheduleService {
         Schedule schedule = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 일정입니다"));
         
-        LocalDate today = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now();
         
         // 날짜가 지난 SCHEDULED 일정을 자동으로 MISSED로 변경
-        if (schedule.getDate().isBefore(today) && schedule.getStatus() == ScheduleStatus.SCHEDULED) {
+        if (schedule.getDate().isBefore(now) && schedule.getStatus() == ScheduleStatus.SCHEDULED) {
             schedule.updateStatus(ScheduleStatus.MISSED);
             scheduleRepository.save(schedule);
         }
@@ -112,11 +104,12 @@ public class ScheduleService {
     @Transactional(readOnly = false)
     public List<ScheduleResponse> getSchedulesByDate(Long userId, LocalDate date) {
         List<Schedule> schedules = scheduleRepository.findByUserIdAndDate(userId, date);
-        LocalDate today = LocalDate.now();
+        
+        LocalDateTime now = LocalDateTime.now();
         
         // 날짜가 지난 SCHEDULED 일정을 자동으로 MISSED로 변경
         schedules.forEach(schedule -> {
-            if (schedule.getDate().isBefore(today) && schedule.getStatus() == ScheduleStatus.SCHEDULED) {
+            if (schedule.getDate().isBefore(now) && schedule.getStatus() == ScheduleStatus.SCHEDULED) {
                 schedule.updateStatus(ScheduleStatus.MISSED);
                 scheduleRepository.save(schedule);
             }
@@ -146,11 +139,11 @@ public class ScheduleService {
                 .filter(s -> s.getUserId().equals(userId))
                 .collect(Collectors.toList());
         
-        LocalDate today = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now();
         
         // 날짜가 지난 SCHEDULED 일정을 자동으로 MISSED로 변경
         userSchedules.forEach(schedule -> {
-            if (schedule.getDate().isBefore(today) && schedule.getStatus() == ScheduleStatus.SCHEDULED) {
+            if (schedule.getDate().isBefore(now) && schedule.getStatus() == ScheduleStatus.SCHEDULED) {
                 schedule.updateStatus(ScheduleStatus.MISSED);
                 scheduleRepository.save(schedule);
             }
@@ -221,36 +214,22 @@ public class ScheduleService {
             schedule.setDrugName(officialName);
         }
         
-        // 복용 날짜 수정
-        if (request.getDate() != null && !request.getDate().equals(schedule.getDate())) {
-            schedule.updateDate(request.getDate());
+        // 복용 날짜 및 시각 수정 (date 또는 time이 변경되면 alarmAt도 자동으로 30분 전으로 재계산)
+        LocalDate newDate = request.getDate() != null ? request.getDate() : schedule.getDate().toLocalDate();
+        LocalTime newTime = request.getTime() != null ? request.getTime() : schedule.getDate().toLocalTime();
+        LocalDateTime newScheduleDateTime = newDate.atTime(newTime);
+        
+        // 날짜 또는 시간이 변경되었는지 확인
+        if (!newScheduleDateTime.equals(schedule.getDate())) {
+            schedule.updateDate(newScheduleDateTime);
+            // alarmAt을 복용 시각에서 30분 전으로 자동 계산
+            LocalDateTime newAlarmAt = newScheduleDateTime.minus(30, ChronoUnit.MINUTES);
+            schedule.updateAlarmAt(newAlarmAt);
         }
         
-        // 복용 예정 시각 수정
-        if (request.getAlarmAt() != null && !request.getAlarmAt().equals(schedule.getAlarmAt())) {
-            // 날짜와 알림 시각의 날짜가 일치하는지 검증
-            LocalDate scheduleDate = request.getDate() != null ? request.getDate() : schedule.getDate();
-            if (!scheduleDate.equals(request.getAlarmAt().toLocalDate())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "복용 날짜와 알림 시각의 날짜가 일치해야 합니다");
-            }
-            schedule.updateAlarmAt(request.getAlarmAt());
-        }
-        
-        // 복용 기간 수정 (표시용)
-        if (request.getStartDate() != null && !request.getStartDate().equals(schedule.getStartDate())) {
-            schedule.updateStartDate(request.getStartDate());
-        }
-        
-        if (request.getEndDate() != null && !request.getEndDate().equals(schedule.getEndDate())) {
-            schedule.updateEndDate(request.getEndDate());
-        }
-        
-        // 복용 기간 검증 (startDate, endDate가 모두 있으면)
-        if (request.getStartDate() != null && request.getEndDate() != null) {
-            if (request.getStartDate().isAfter(request.getEndDate())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "복용 시작일은 종료일보다 이전이어야 합니다");
-            }
-        }
+        // 복용 기간 제거 (null로 설정)
+        schedule.updateStartDate(null);
+        schedule.updateEndDate(null);
         
         // 복용량 수정
         if (request.getDose() != null && !request.getDose().equals(schedule.getDose())) {
@@ -313,7 +292,8 @@ public class ScheduleService {
                 }
                 
                 // 금지 타이머 계산 (카페인, 알코올)
-                List<BanTimerResponse> banTimers = medicationIntakeService.calculateBanTimersInternal(takenAt, schedule.getDrugId());
+                // 해당 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 사용
+                List<BanTimerResponse> banTimers = medicationIntakeService.calculateBanTimersInternal(schedule.getUserId(), takenAt);
                 
                 // 카페인과 알코올 타이머 분리
                 for (BanTimerResponse timer : banTimers) {
@@ -328,12 +308,12 @@ public class ScheduleService {
             // 사용자가 status를 명시적으로 변경하지 않은 경우
             // 날짜가 지났고 SCHEDULED 상태이면 자동으로 MISSED로 변경
             // 단, plan이 CANCELLED로 설정된 경우는 제외
-            LocalDate finalScheduleDate = request.getDate() != null ? request.getDate() : schedule.getDate();
-            LocalDate today = LocalDate.now();
+            LocalDateTime now = LocalDateTime.now();
             
-            // 날짜가 오늘보다 과거이고, 현재 상태가 SCHEDULED이면 MISSED로 자동 변경
+            // 날짜가 현재보다 과거이고, 현재 상태가 SCHEDULED이면 MISSED로 자동 변경
             // CANCELLED 상태는 자동 변경하지 않음
-            if (finalScheduleDate.isBefore(today) && schedule.getStatus() == ScheduleStatus.SCHEDULED) {
+            // newScheduleDateTime은 위에서 이미 계산됨
+            if (newScheduleDateTime.isBefore(now) && schedule.getStatus() == ScheduleStatus.SCHEDULED) {
                 schedule.updateStatus(ScheduleStatus.MISSED);
             }
         }
@@ -439,10 +419,8 @@ public class ScheduleService {
                 .drugId(schedule.getDrugId())
                 .name(schedule.getDrugName())
                 .dose(schedule.getDose())
-                .date(schedule.getDate())
-                .alarmAt(schedule.getAlarmAt())
-                .startDate(schedule.getStartDate())
-                .endDate(schedule.getEndDate())
+                .date(schedule.getDate().toLocalDate())
+                .time(schedule.getDate().toLocalTime())
                 .memo(schedule.getMemo())
                 .plan(resolvedPlan)
                 .status(resolvedStatus)

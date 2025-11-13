@@ -1,7 +1,7 @@
 package com.pillmate.pillmate.DTO;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -31,14 +31,8 @@ public class ScheduleUpdateResponse {
     @Schema(description = "복용 날짜 (YYYY-MM-DD 형식)", example = "2025-10-08")
     private LocalDate date;
     
-    @Schema(description = "복용 예정 시각", example = "2025-10-08T09:00:00")
-    private LocalDateTime alarmAt;
-    
-    @Schema(description = "복용 기간 시작일 (표시용)", example = "2025-10-08")
-    private LocalDate startDate;
-    
-    @Schema(description = "복용 기간 종료일 (표시용)", example = "2025-10-15")
-    private LocalDate endDate;
+    @Schema(description = "복용 시간 (HH:mm 형식)", example = "08:30")
+    private LocalTime time;
     
     @Schema(description = "사용자 메모", example = "시간 조정")
     private String memo;

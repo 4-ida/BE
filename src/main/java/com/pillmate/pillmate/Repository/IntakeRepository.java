@@ -24,4 +24,7 @@ public interface IntakeRepository extends JpaRepository<Intake, Long> {
 	
 	// 사용자별 특정 타입의 최신 섭취 기록 조회
 	Optional<Intake> findTopByUserIdAndIntakeTypeOrderByCreatedAtDesc(Long userId, IntakeType intakeType);
+	
+	// 사용자별 특정 타입의 모든 섭취 기록 조회 (최신순)
+	List<Intake> findByUserIdAndIntakeTypeOrderByCreatedAtDesc(Long userId, IntakeType intakeType);
 }

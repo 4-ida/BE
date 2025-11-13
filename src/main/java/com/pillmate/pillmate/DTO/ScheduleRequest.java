@@ -1,7 +1,7 @@
 package com.pillmate.pillmate.DTO;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
@@ -31,18 +31,12 @@ public class ScheduleRequest {
     private String dose;
     
     @NotNull(message = "복용 날짜는 필수입니다")
-    @Schema(description = "복용 날짜 (YYYY-MM-DD 형식)", example = "2025-10-08", required = true)
+    @Schema(description = "복용 날짜 (YYYY-MM-DD 형식, 캘린더에서 선택한 날짜)", example = "2025-10-08", required = true)
     private LocalDate date;
     
-    @NotNull(message = "알림 시각은 필수입니다")
-    @Schema(description = "복용 예정 시각 (ISO8601 형식)", example = "2025-10-08T08:30:00", required = true)
-    private LocalDateTime alarmAt;
-    
-    @Schema(description = "복용 기간 시작일 (표시용, YYYY-MM-DD 형식)", example = "2025-10-08")
-    private LocalDate startDate;
-    
-    @Schema(description = "복용 기간 종료일 (표시용, YYYY-MM-DD 형식)", example = "2025-10-15")
-    private LocalDate endDate;
+    @NotNull(message = "복용 시간은 필수입니다")
+    @Schema(description = "복용 시간 (HH:mm 형식)", example = "08:30", required = true)
+    private LocalTime time;
     
     @Schema(description = "사용자 메모", example = "식후 30분")
     private String memo;

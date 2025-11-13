@@ -17,7 +17,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -146,7 +145,7 @@ public class IntakeService {
 	// 2️⃣ 알코올 전용 섭취 등록
 	// ===========================
 	public IntakeResponse createAlcoholIntake(Long userId, AlcoholIntakeRequest req) {
-		// 직접 입력 우선순위 확인
+		// 직접 입력 모드 확인
 		Boolean useCustomInput = req.getUseCustomInput() != null && req.getUseCustomInput();
 		double finalAmount;
 		Double finalAbv = null;
@@ -157,30 +156,28 @@ public class IntakeService {
 			int cupCount = req.getCupCount() != null ? req.getCupCount() : 1;
 			finalAmount = volumePerCup * cupCount;
 			finalAbv = req.getCustomAbv();
-		} else if (req.getVolumeMl() != null && req.getVolumeMl() > 0.0) {
-			// volumeMl이 직접 제공된 경우 그대로 사용
-			finalAmount = req.getVolumeMl();
-			// volumeMl만 제공되고 customAbv가 있으면 그것 사용, 없으면 카테고리 기본값
-			if (req.getCustomAbv() != null && req.getCustomAbv() > 0.0) {
-				finalAbv = req.getCustomAbv();
-			} else {
-				finalAbv = getAbvByType(req.getAlcoholType());
-			}
 		} else {
 			// 카테고리 선택 모드: 기본 용량 또는 커스텀 용량과 잔수로 계산
+			// 잔당 용량 결정: customVolumeMl이 있으면 사용, 없으면 alcoholType 기본값
 			double volumePerCup;
 			if (req.getCustomVolumeMl() != null && req.getCustomVolumeMl() > 0.0) {
 				// 사용자가 잔 크기를 변경한 경우
 				volumePerCup = req.getCustomVolumeMl();
 			} else {
-				// 기본 용량 사용
+				// 기본 용량 사용 (alcoholType 필수)
 				volumePerCup = getDefaultVolumeByType(req.getAlcoholType());
 			}
 			
 			// 잔수 계산 (기본값 1잔)
 			int cupCount = req.getCupCount() != null ? req.getCupCount() : 1;
 			finalAmount = volumePerCup * cupCount;
-			finalAbv = getAbvByType(req.getAlcoholType());
+			
+			// 도수 결정: customAbv가 있으면 사용, 없으면 alcoholType 기본값
+			if (req.getCustomAbv() != null && req.getCustomAbv() > 0.0) {
+				finalAbv = req.getCustomAbv();
+			} else {
+				finalAbv = getAbvByType(req.getAlcoholType());
+			}
 		}
 
 		LocalDateTime intakeAt = resolveIntakeAt(
@@ -277,8 +274,9 @@ public class IntakeService {
 			intakeId, intakeAt, now, String.format("%.2f", hoursPassed), String.format("%.2f", initialMg), 
 			String.format("%.2f", halfLifeHours), String.format("%.2f", currentMg));
 		
-		// 사용자가 복용 중인 약물 중 가장 높은 보정계수 찾기
-		double maxAdjustmentFactor = findMaxAdjustmentFactor(userId);
+		// 사용자가 복용 중인 약물 중 가장 높은 보정계수 찾기 (섭취 날짜 기준)
+		LocalDate intakeDate = intakeAt.toLocalDate();
+		double maxAdjustmentFactor = findMaxAdjustmentFactor(userId, intakeDate);
 		
 		// 30mg 미만이 되기까지 필요한 시간 계산
 		// 30 = initialMg × (0.5)^(t / halfLifeHours)
@@ -363,7 +361,21 @@ public class IntakeService {
 		// 현재 시간과 섭취 시각 비교
 		LocalDateTime now = LocalDateTime.now();
 		LocalDateTime intakeAt = intake.getCreatedAt();
-		double hoursPassed = ChronoUnit.SECONDS.between(intakeAt, now) / 3600.0;
+		
+		// 경과 시간 계산 (초 단위)
+		long secondsPassed = ChronoUnit.SECONDS.between(intakeAt, now);
+		
+		// 섭취 시각이 미래인 경우 0으로 처리 (아직 섭취하지 않은 경우)
+		if (secondsPassed < 0) {
+			log.warn("알코올 섭취 시각이 미래입니다. intakeAt: {}, now: {}, intakeId: {}", intakeAt, now, intakeId);
+			secondsPassed = 0;
+		}
+		
+		double hoursPassed = secondsPassed / 3600.0;
+		
+		// 디버깅 로그
+		log.info("알코올 잔존량 계산 - intakeId: {}, intakeAt: {}, now: {}, secondsPassed: {}s, hoursPassed: {}h", 
+			intakeId, intakeAt, now, secondsPassed, String.format("%.6f", hoursPassed));
 		
 		// 술 종류별 기본 용량 및 도수 가져오기
 		String alcoholType = intake.getBeverageName();
@@ -384,6 +396,13 @@ public class IntakeService {
 		// BAC_now = max(0, BAC_peak − rate × 경과시간_h)
 		double bacNow = Math.max(0.0, bacPeak - (rate * hoursPassed));
 		
+		// 디버깅 로그
+		log.info("알코올 BAC 계산 - intakeId: {}, volumeMl: {}, abv: {}%, standardDrinks: {}, bacPeak: {}%, hoursPassed: {}h, rate: {}%/h, bacNow: {}%, threshold: {}%", 
+			intakeId, String.format("%.2f", volumeMl), String.format("%.2f", abv), 
+			String.format("%.2f", standardDrinks), String.format("%.6f", bacPeak), 
+			String.format("%.2f", hoursPassed), String.format("%.6f", rate),
+			String.format("%.6f", bacNow), String.format("%.6f", ALCOHOL_THRESHOLD_BAC));
+		
 		// 0.02% 미만이 되기까지 필요한 시간 계산
 		// t_to_threshold = max(0, (BAC_now − 0.02) ÷ rate)
 		double timeToThresholdHours = 0.0;
@@ -391,8 +410,9 @@ public class IntakeService {
 			timeToThresholdHours = (bacNow - ALCOHOL_THRESHOLD_BAC) / rate;
 		}
 		
-		// 사용자가 복용 중인 약물 중 가장 높은 보정계수 찾기
-		double maxAdjustmentFactor = findMaxAdjustmentFactor(userId);
+		// 사용자가 복용 중인 약물 중 가장 높은 보정계수 찾기 (섭취 날짜 기준)
+		LocalDate intakeDate = intakeAt.toLocalDate();
+		double maxAdjustmentFactor = findMaxAdjustmentFactor(userId, intakeDate);
 		
 		// 약물군 보정계수 적용
 		double finalTimeHours = timeToThresholdHours * maxAdjustmentFactor;
@@ -408,6 +428,11 @@ public class IntakeService {
 		
 		// 이미 복약 가능한지 여부
 		boolean isSafe = bacNow <= ALCOHOL_THRESHOLD_BAC;
+		
+		// 디버깅 로그
+		log.info("알코올 isSafe 계산 - intakeId: {}, bacNow: {}%, threshold: {}%, isSafe: {}, remainingSec: {}, currentAmount(응답용): {}", 
+			intakeId, String.format("%.6f", bacNow), String.format("%.6f", ALCOHOL_THRESHOLD_BAC), 
+			isSafe, remainingSec, String.format("%.2f", bacNow * 100));
 		
 		// 가정값들
 		Map<String, Object> assumptions = new HashMap<>();
@@ -432,26 +457,26 @@ public class IntakeService {
 	}
 
 	/**
-	 * 사용자의 복약 일정에서 현재 날짜의 약물에 대한 보정계수 찾기
+	 * 사용자의 복약 일정에서 특정 날짜의 약물에 대한 보정계수 찾기
 	 * 
 	 * 로직:
-	 * 1. 현재 날짜의 복약 일정 조회 (SCHEDULED 상태만)
+	 * 1. 특정 날짜의 복약 일정 조회 (SCHEDULED 상태만)
 	 * 2. 일정이 없으면 보정계수 적용 안 함 (기본값 1.0 반환)
 	 * 3. 여러 개의 약물이 있으면 보정계수가 가장 높은 것을 반환
 	 * 
 	 * @param userId 사용자 ID
+	 * @param targetDate 조회할 날짜 (섭취 날짜 또는 현재 날짜)
 	 * @return 약물군 보정계수 (없으면 1.0, 여러 개면 최대값)
 	 */
-	private double findMaxAdjustmentFactor(Long userId) {
-		// 현재 날짜 기준으로 복약 일정 조회 (SCHEDULED 상태만)
-		LocalDate today = LocalDate.now();
-		List<Schedule> allSchedules = scheduleRepository.findByUserIdAndDate(userId, today);
+	private double findMaxAdjustmentFactor(Long userId, LocalDate targetDate) {
+		// 특정 날짜 기준으로 복약 일정 조회 (SCHEDULED 상태만)
+		List<Schedule> allSchedules = scheduleRepository.findByUserIdAndDate(userId, targetDate);
 		List<Schedule> activeSchedules = allSchedules.stream()
 			.filter(s -> s.getStatus() == ScheduleStatus.SCHEDULED)
 			.collect(Collectors.toList());
 		
-		log.debug("보정계수 조회 - userId: {}, today: {}, 전체 일정 수: {}, SCHEDULED 일정 수: {}", 
-			userId, today, allSchedules.size(), activeSchedules.size());
+		log.debug("보정계수 조회 - userId: {}, targetDate: {}, 전체 일정 수: {}, SCHEDULED 일정 수: {}", 
+			userId, targetDate, allSchedules.size(), activeSchedules.size());
 		
 		// 일정이 없으면 보정계수 적용 안 함 (기본값 1.0 반환)
 		if (activeSchedules.isEmpty()) {
@@ -543,50 +568,102 @@ public class IntakeService {
 		ActiveTimerListResponse.ActiveTimerItem caffeineTimer = null;
 		ActiveTimerListResponse.ActiveTimerItem alcoholTimer = null;
 		
-		// 카페인 최신 기록 조회
-		Optional<Intake> latestCaffeine = intakeRepository.findTopByUserIdAndIntakeTypeOrderByCreatedAtDesc(userId, IntakeType.CAFFEINE);
-		if (latestCaffeine.isPresent()) {
-			Intake intake = latestCaffeine.get();
-			ResidualTimerResponse timer = calculateCaffeineResidualTimer(userId, intake.getIntakeId());
-			
-			// 활성 타이머만 포함 (아직 복약 불가능한 경우)
-			if (timer != null && !timer.getIsSafe()) {
-				caffeineTimer = ActiveTimerListResponse.ActiveTimerItem.builder()
-					.intakeId(intake.getIntakeId())
-					.intakeType("CAFFEINE")
-					.name(intake.getBeverageName())
-					.amount(intake.getAmount())
-					.abv(null)  // 카페인은 도수 없음
-					.intakeAt(intake.getCreatedAt())
-					.currentAmount(timer.getCurrentAmount())
-					.remainingSec(timer.getRemainingSec())
-					.expectedSafeTime(timer.getExpectedSafeTime())
-					.isSafe(timer.getIsSafe())
-					.build();
+		// 카페인 기록 조회: 최신 기록부터 순서대로 확인하여 isSafe=false인 첫 번째 기록 찾기
+		List<Intake> caffeineIntakes = intakeRepository.findByUserIdAndIntakeTypeOrderByCreatedAtDesc(userId, IntakeType.CAFFEINE);
+		if (!caffeineIntakes.isEmpty()) {
+			for (Intake intake : caffeineIntakes) {
+				try {
+					log.debug("카페인 기록 확인: intakeId={}, beverageName={}, amount={}", 
+						intake.getIntakeId(), intake.getBeverageName(), intake.getAmount());
+					
+					ResidualTimerResponse timer = calculateCaffeineResidualTimer(userId, intake.getIntakeId());
+					log.debug("카페인 타이머 계산 결과: intakeId={}, timer={}, isSafe={}, currentAmount={}, remainingSec={}", 
+						intake.getIntakeId(), timer != null ? "not null" : "null", 
+						timer != null ? timer.getIsSafe() : "N/A",
+						timer != null ? timer.getCurrentAmount() : "N/A",
+						timer != null ? timer.getRemainingSec() : "N/A");
+					
+					// 활성 타이머만 포함 (아직 복약 불가능한 경우, isSafe가 false인 경우)
+					if (timer != null && !timer.getIsSafe()) {
+						caffeineTimer = ActiveTimerListResponse.ActiveTimerItem.builder()
+							.intakeId(intake.getIntakeId())
+							.intakeType("CAFFEINE")
+							.name(intake.getBeverageName())
+							.amount(intake.getAmount())
+							.abv(null)  // 카페인은 도수 없음
+							.intakeAt(intake.getCreatedAt())
+							.currentAmount(timer.getCurrentAmount())
+							.remainingSec(timer.getRemainingSec())
+							.expectedSafeTime(timer.getExpectedSafeTime())
+							.isSafe(timer.getIsSafe())
+							.build();
+						log.info("카페인 활성 타이머 생성 완료: intakeId={}, isSafe={}, remainingSec={}", 
+							intake.getIntakeId(), timer.getIsSafe(), timer.getRemainingSec());
+						break; // isSafe=false인 첫 번째 기록을 찾았으므로 종료
+					} else if (timer != null) {
+						log.info("카페인 타이머는 안전 상태입니다 (제외됨): intakeId={}, isSafe={}", 
+							intake.getIntakeId(), timer.getIsSafe());
+					} else {
+						log.warn("카페인 타이머가 null입니다: intakeId={}", intake.getIntakeId());
+					}
+				} catch (Exception e) {
+					log.error("카페인 타이머 계산 중 오류 발생: userId={}, intakeId={}", 
+						userId, intake.getIntakeId(), e);
+					// 오류가 발생해도 다음 기록 계속 확인
+				}
 			}
+		} else {
+			log.debug("카페인 기록이 없습니다: userId={}", userId);
 		}
 		
-		// 알코올 최신 기록 조회
-		Optional<Intake> latestAlcohol = intakeRepository.findTopByUserIdAndIntakeTypeOrderByCreatedAtDesc(userId, IntakeType.ALCOHOL);
-		if (latestAlcohol.isPresent()) {
-			Intake intake = latestAlcohol.get();
-			ResidualTimerResponse timer = calculateAlcoholResidualTimer(userId, intake.getIntakeId());
-			
-			// 활성 타이머만 포함 (아직 복약 불가능한 경우)
-			if (timer != null && !timer.getIsSafe()) {
-				alcoholTimer = ActiveTimerListResponse.ActiveTimerItem.builder()
-					.intakeId(intake.getIntakeId())
-					.intakeType("ALCOHOL")
-					.name(intake.getBeverageName())
-					.amount(intake.getAmount())
-					.abv(intake.getAbv() != null ? intake.getAbv() : getAbvByType(intake.getBeverageName()))
-					.intakeAt(intake.getCreatedAt())
-					.currentAmount(timer.getCurrentAmount())
-					.remainingSec(timer.getRemainingSec())
-					.expectedSafeTime(timer.getExpectedSafeTime())
-					.isSafe(timer.getIsSafe())
-					.build();
+		// 알코올 기록 조회: 최신 기록부터 순서대로 확인하여 isSafe=false인 첫 번째 기록 찾기
+		List<Intake> alcoholIntakes = intakeRepository.findByUserIdAndIntakeTypeOrderByCreatedAtDesc(userId, IntakeType.ALCOHOL);
+		if (!alcoholIntakes.isEmpty()) {
+			for (Intake intake : alcoholIntakes) {
+				try {
+					log.info("알코올 기록 확인: intakeId={}, beverageName={}, amount={}, abv={}, createdAt={}", 
+						intake.getIntakeId(), intake.getBeverageName(), intake.getAmount(), 
+						intake.getAbv(), intake.getCreatedAt());
+					
+					ResidualTimerResponse timer = calculateAlcoholResidualTimer(userId, intake.getIntakeId());
+					log.info("알코올 타이머 계산 결과: intakeId={}, timer={}, isSafe={}, currentAmount={}, threshold={}, remainingSec={}", 
+						intake.getIntakeId(), timer != null ? "not null" : "null", 
+						timer != null ? timer.getIsSafe() : "N/A",
+						timer != null ? timer.getCurrentAmount() : "N/A",
+						timer != null ? timer.getThreshold() : "N/A",
+						timer != null ? timer.getRemainingSec() : "N/A");
+					
+					// 활성 타이머만 포함 (아직 복약 불가능한 경우, isSafe가 false인 경우)
+					if (timer != null && !timer.getIsSafe()) {
+						alcoholTimer = ActiveTimerListResponse.ActiveTimerItem.builder()
+							.intakeId(intake.getIntakeId())
+							.intakeType("ALCOHOL")
+							.name(intake.getBeverageName())
+							.amount(intake.getAmount())
+							.abv(intake.getAbv() != null ? intake.getAbv() : getAbvByType(intake.getBeverageName()))
+							.intakeAt(intake.getCreatedAt())
+							.currentAmount(timer.getCurrentAmount())
+							.remainingSec(timer.getRemainingSec())
+							.expectedSafeTime(timer.getExpectedSafeTime())
+							.isSafe(timer.getIsSafe())
+							.build();
+						log.info("알코올 활성 타이머 생성 완료: intakeId={}, isSafe={}, remainingSec={}", 
+							intake.getIntakeId(), timer.getIsSafe(), timer.getRemainingSec());
+						break; // isSafe=false인 첫 번째 기록을 찾았으므로 종료
+					} else if (timer != null) {
+						log.info("알코올 타이머는 안전 상태입니다 (제외됨): intakeId={}, isSafe={}", 
+							intake.getIntakeId(), timer.getIsSafe());
+					} else {
+						log.warn("알코올 타이머가 null입니다: intakeId={}", intake.getIntakeId());
+					}
+				} catch (Exception e) {
+					log.error("알코올 타이머 계산 중 오류 발생: userId={}, intakeId={}", 
+						userId, intake.getIntakeId(), e);
+					// 오류가 발생해도 다음 기록 계속 확인
+				}
 			}
+		} else {
+			log.debug("알코올 기록이 없습니다: userId={}", userId);
 		}
 		
 		return ActiveTimerListResponse.builder()

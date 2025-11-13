@@ -13,9 +13,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -57,9 +59,10 @@ public class MedicationIntakeService {
         
         // 금지 타이머 계산 (기본 시간 × 보정 계수)
         // TAKEN 상태로 변경되면 카페인 6시간, 알코올 7시간 × 보정 계수만큼 금지
+        // 해당 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 사용
         List<BanTimerResponse> banTimers = calculateBanTimers(
-                request.getTakenAt(), 
-                request.getDrugId()
+                schedule.getUserId(),
+                request.getTakenAt()
         );
         
         return MedicationIntakeResponse.builder()
@@ -74,35 +77,37 @@ public class MedicationIntakeService {
      * 금지 타이머 계산
      * 기본 시간 × 보정 계수 방식으로 계산
      * TAKEN 상태로 변경되면 활성화되는 금지 타이머
+     * 해당 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 사용
      * 
+     * @param userId 사용자 ID
      * @param takenAt 복용 시각
-     * @param drugId 약품 ID (약물군 보정 계수 조회용)
      * @return 금지 타이머 리스트 (카페인, 알코올)
      */
     private List<BanTimerResponse> calculateBanTimers(
-            LocalDateTime takenAt, 
-            Long drugId) {
-        return calculateBanTimersInternal(takenAt, drugId);
+            Long userId,
+            LocalDateTime takenAt) {
+        return calculateBanTimersInternal(userId, takenAt);
     }
     
     /**
      * 금지 타이머 계산 (public 메서드)
      * 기본 시간 × 보정 계수 방식으로 계산
      * TAKEN 상태로 변경되면 활성화되는 금지 타이머
+     * 해당 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 사용
      * 
+     * @param userId 사용자 ID
      * @param takenAt 복용 시각
-     * @param drugId 약품 ID (약물군 보정 계수 조회용)
      * @return 금지 타이머 리스트 (카페인, 알코올)
      */
     public List<BanTimerResponse> calculateBanTimersInternal(
-            LocalDateTime takenAt, 
-            Long drugId) {
+            Long userId,
+            LocalDateTime takenAt) {
         
         List<BanTimerResponse> banTimers = new ArrayList<>();
         
-        // 약물군 보정 계수 조회 (카페인과 알코올 동일한 계수 사용)
-        String drugIdString = String.valueOf(drugId);
-        double adjustmentFactor = drugClassificationService.getCaffeineAdjustmentFactor(drugIdString);
+        // 해당 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 조회
+        LocalDate targetDate = takenAt.toLocalDate();
+        double adjustmentFactor = findMaxAdjustmentFactor(userId, targetDate);
         
         // 현재 시간 기준으로 남은 금지 시간 계산
         LocalDateTime now = LocalDateTime.now();
@@ -147,14 +152,15 @@ public class MedicationIntakeService {
     /**
      * 카페인 금지 타이머 계산 (기본 시간 × 보정 계수)
      * TAKEN 상태로 변경되면 활성화되는 금지 타이머
+     * 해당 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 사용
      * 
+     * @param userId 사용자 ID
      * @param takenAt 복용 시각
-     * @param drugId 약품 ID (약물군 보정 계수 조회용)
      * @return 카페인 금지 타이머
      */
-    public BanTimerResponse calculateCaffeineBanTimer(LocalDateTime takenAt, Long drugId) {
-        String drugIdString = String.valueOf(drugId);
-        double adjustmentFactor = drugClassificationService.getCaffeineAdjustmentFactor(drugIdString);
+    public BanTimerResponse calculateCaffeineBanTimer(Long userId, LocalDateTime takenAt) {
+        LocalDate targetDate = takenAt.toLocalDate();
+        double adjustmentFactor = findMaxAdjustmentFactor(userId, targetDate);
         
         // 기본 시간(6시간) × 보정 계수
         long banSeconds = (long) (CAFFEINE_BASE_BAN_HOURS * 3600 * adjustmentFactor);
@@ -171,14 +177,15 @@ public class MedicationIntakeService {
     /**
      * 알코올 금지 타이머 계산 (기본 시간 × 보정 계수)
      * TAKEN 상태로 변경되면 활성화되는 금지 타이머
+     * 해당 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 사용
      * 
+     * @param userId 사용자 ID
      * @param takenAt 복용 시각
-     * @param drugId 약품 ID (약물군 보정 계수 조회용)
      * @return 알코올 금지 타이머
      */
-    public BanTimerResponse calculateAlcoholBanTimer(LocalDateTime takenAt, Long drugId) {
-        String drugIdString = String.valueOf(drugId);
-        double adjustmentFactor = drugClassificationService.getCaffeineAdjustmentFactor(drugIdString);
+    public BanTimerResponse calculateAlcoholBanTimer(Long userId, LocalDateTime takenAt) {
+        LocalDate targetDate = takenAt.toLocalDate();
+        double adjustmentFactor = findMaxAdjustmentFactor(userId, targetDate);
         
         // 기본 시간(7시간) × 보정 계수
         long banSeconds = (long) (ALCOHOL_BASE_BAN_HOURS * 3600 * adjustmentFactor);
@@ -229,11 +236,10 @@ public class MedicationIntakeService {
         }
         
         LocalDateTime takenAt = latestIntake.getTakenAt();
-        Long drugId = schedule.getDrugId();
         
-        // 약물군 보정 계수 조회
-        String drugIdString = String.valueOf(drugId);
-        double adjustmentFactor = drugClassificationService.getCaffeineAdjustmentFactor(drugIdString);
+        // 해당 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 조회
+        LocalDate targetDate = takenAt.toLocalDate();
+        double adjustmentFactor = findMaxAdjustmentFactor(schedule.getUserId(), targetDate);
         
         // 기본 금지 시간(6시간) × 보정 계수
         long totalBanSeconds = (long) (CAFFEINE_BASE_BAN_HOURS * 3600 * adjustmentFactor);
@@ -293,11 +299,10 @@ public class MedicationIntakeService {
         }
         
         LocalDateTime takenAt = latestIntake.getTakenAt();
-        Long drugId = schedule.getDrugId();
         
-        // 약물군 보정 계수 조회
-        String drugIdString = String.valueOf(drugId);
-        double adjustmentFactor = drugClassificationService.getCaffeineAdjustmentFactor(drugIdString);
+        // 해당 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 조회
+        LocalDate targetDate = takenAt.toLocalDate();
+        double adjustmentFactor = findMaxAdjustmentFactor(schedule.getUserId(), targetDate);
         
         // 기본 금지 시간(7시간) × 보정 계수
         long totalBanSeconds = (long) (ALCOHOL_BASE_BAN_HOURS * 3600 * adjustmentFactor);
@@ -318,5 +323,50 @@ public class MedicationIntakeService {
                 .remainingSec(remainingSeconds)
                 .expectedSafeTime(expectedSafeTime)
                 .build();
+    }
+    
+    /**
+     * 사용자의 복약 일정에서 특정 날짜의 약물에 대한 보정계수 찾기
+     * 
+     * 로직:
+     * 1. 특정 날짜의 복약 일정 조회 (SCHEDULED 상태만)
+     * 2. 일정이 없으면 보정계수 적용 안 함 (기본값 1.0 반환)
+     * 3. 여러 개의 약물이 있으면 보정계수가 가장 높은 것을 반환
+     * 
+     * @param userId 사용자 ID
+     * @param targetDate 조회할 날짜 (복용 날짜)
+     * @return 약물군 보정계수 (없으면 1.0, 여러 개면 최대값)
+     */
+    private double findMaxAdjustmentFactor(Long userId, LocalDate targetDate) {
+        // 특정 날짜 기준으로 복약 일정 조회 (SCHEDULED 상태만)
+        List<Schedule> allSchedules = scheduleRepository.findByUserIdAndDate(userId, targetDate);
+        List<Schedule> activeSchedules = allSchedules.stream()
+            .filter(s -> s.getStatus() == ScheduleStatus.SCHEDULED)
+            .collect(Collectors.toList());
+        
+        log.debug("보정계수 조회 - userId: {}, targetDate: {}, 전체 일정 수: {}, SCHEDULED 일정 수: {}", 
+            userId, targetDate, allSchedules.size(), activeSchedules.size());
+        
+        // 일정이 없으면 보정계수 적용 안 함 (기본값 1.0 반환)
+        if (activeSchedules.isEmpty()) {
+            log.debug("SCHEDULED 상태 일정이 없어서 보정계수 1.0 반환");
+            return 1.0;
+        }
+        
+        // 각 약물의 보정계수 계산하고 최대값 찾기
+        // 여러 개의 약물이 있으면 보정계수가 가장 높은 것을 적용
+        double maxFactor = 1.0;
+        for (Schedule schedule : activeSchedules) {
+            String drugIdString = String.valueOf(schedule.getDrugId());
+            double factor = drugClassificationService.getCaffeineAdjustmentFactor(drugIdString);
+            log.debug("약물 보정계수 조회 - scheduleId: {}, drugId: {}, drugName: {}, factor: {}", 
+                schedule.getScheduleId(), schedule.getDrugId(), schedule.getDrugName(), factor);
+            if (factor > maxFactor) {
+                maxFactor = factor;
+            }
+        }
+        
+        log.debug("최종 보정계수: {}", maxFactor);
+        return maxFactor;
     }
 }

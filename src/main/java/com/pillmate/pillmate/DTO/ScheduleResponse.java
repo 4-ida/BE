@@ -1,7 +1,7 @@
 package com.pillmate.pillmate.DTO;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pillmate.pillmate.Domain.Schedule;
@@ -35,14 +35,8 @@ public class ScheduleResponse {
     @Schema(description = "복용 날짜 (YYYY-MM-DD 형식)", example = "2025-10-08")
     private LocalDate date;
     
-    @Schema(description = "복용 예정 시각", example = "2025-10-08T08:30:00")
-    private LocalDateTime alarmAt;
-    
-    @Schema(description = "복용 기간 시작일 (표시용)", example = "2025-10-08")
-    private LocalDate startDate;
-    
-    @Schema(description = "복용 기간 종료일 (표시용)", example = "2025-10-15")
-    private LocalDate endDate;
+    @Schema(description = "복용 시간 (HH:mm 형식)", example = "08:30")
+    private LocalTime time;
     
     @Schema(description = "사용자 메모", example = "식후 30분")
     private String memo;
@@ -77,10 +71,8 @@ public class ScheduleResponse {
                 .drugId(schedule.getDrugId())
                 .name(schedule.getDrugName())
                 .dose(schedule.getDose())
-                .date(schedule.getDate())
-                .alarmAt(schedule.getAlarmAt())
-                .startDate(schedule.getStartDate())
-                .endDate(schedule.getEndDate())
+                .date(schedule.getDate().toLocalDate())
+                .time(schedule.getDate().toLocalTime())
                 .memo(schedule.getMemo())
                 .plan(resolvedPlan)
                 .status(resolvedStatus)
@@ -133,10 +125,8 @@ public class ScheduleResponse {
                 .drugId(schedule.getDrugId())
                 .name(schedule.getDrugName())
                 .dose(schedule.getDose())
-                .date(schedule.getDate())
-                .alarmAt(schedule.getAlarmAt())
-                .startDate(schedule.getStartDate())
-                .endDate(schedule.getEndDate())
+                .date(schedule.getDate().toLocalDate())
+                .time(schedule.getDate().toLocalTime())
                 .memo(schedule.getMemo())
                 .plan(resolvedPlan)
                 .status(resolvedStatus)

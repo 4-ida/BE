@@ -39,7 +39,7 @@ public class ScheduleController {
     
     private final ScheduleService scheduleService;
     
-    @Operation(summary = "복약 일정 등록", description = "메인 캘린더에 새로운 복약 일정을 등록합니다.")
+    @Operation(summary = "복약 일정 등록", description = "달력에서 선택한 날짜에 새로운 복약 일정을 등록합니다. 단일 날짜만 등록 가능합니다.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "201", description = "복약 일정 등록 성공"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청")
@@ -57,9 +57,7 @@ public class ScheduleController {
                         .name(scheduleResponse.getName())
                         .dose(scheduleResponse.getDose())
                         .date(scheduleResponse.getDate())
-                        .alarmAt(scheduleResponse.getAlarmAt())
-                        .startDate(scheduleResponse.getStartDate())
-                        .endDate(scheduleResponse.getEndDate())
+                        .time(scheduleResponse.getTime())
                         .memo(scheduleResponse.getMemo())
                         .plan(scheduleResponse.getPlan())
                         .status(scheduleResponse.getStatus())
@@ -89,9 +87,7 @@ public class ScheduleController {
             private String name;
             private String dose;
             private java.time.LocalDate date;  // 복용 날짜
-            private java.time.LocalDateTime alarmAt;  // 복용 예정 시각
-            private java.time.LocalDate startDate;  // 복용 기간 시작일 (표시용)
-            private java.time.LocalDate endDate;  // 복용 기간 종료일 (표시용)
+            private java.time.LocalTime time;  // 복용 시간
             private String memo;
             private String plan;
             private String status;
