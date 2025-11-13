@@ -31,4 +31,13 @@ public class AlcoholIntakeRequest {
 	
 	@Schema(description = "섭취 시각 (null이면 현재 시간)", example = "2025-11-12T18:00:00")
 	private LocalDateTime intakeAt;
+
+	@Schema(description = "오전/오후 정보", example = "오후")
+	private String meridiem;   // "오전"/"오후" 또는 "AM"/"PM"
+
+	@Schema(description = "시 (1~12시 형태)", example = "6")
+	private Integer hour;
+
+	@Schema(description = "분 (0~59)", example = "0")
+	private Integer minute;
 }
