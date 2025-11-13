@@ -1,6 +1,7 @@
 package com.pillmate.pillmate.Service;
 
 import com.pillmate.pillmate.Domain.Drug;
+import com.pillmate.pillmate.Repository.BookmarkRepository;
 import com.pillmate.pillmate.Repository.DrugRepository;
 import com.pillmate.pillmate.Service.dto.MfdsEasyDrugResponse;
 import com.pillmate.pillmate.Service.dto.MfdsEasyDrugResponse.MfdsEasyDrugItem;
@@ -23,6 +24,8 @@ public class DrugService {
     private final DrugRepository drugRepository;
     private final TextNormalizer textNormalizer;
     private final MfdsDrugInfoClient mfdsDrugInfoClient; 
+    private final BookmarkRepository bookmarkRepository;
+
 
     /* -------------------- 약 명 자동완성 -------------------- */
     public SuggestResponse suggest(String rawQuery, Integer limit) {
@@ -93,6 +96,8 @@ public class DrugService {
 
             int p = (page == null || page < 0) ? 0 : page;
             int s = (size == null || size <= 0) ? 10 : Math.min(size, 20);
+
+            //Long currentUserId = resolveCurrentUserId();
 
             // -------- 1) 내부 DB 스냅샷(선택) --------
             // 내부 DB가 동기화된 품목을 일부 갖고 있다면 우선 가져오기
@@ -176,6 +181,7 @@ public class DrugService {
                     .drugId(d.getId())             // 내부 스냅샷의 id가 MFDS itemSeq와 동일하다는 가정
                     .name(d.getName())
                     .thumbnailUrl(d.getThumbnailUrl())
+                    .bookmarked(false) 
                     .build();
         } catch (Exception ex) {
             log.warn("Failed to map Drug to SearchItem: drugId={}", d.getId(), ex);
@@ -200,6 +206,7 @@ public class DrugService {
                                     .drugId(safeStr(it.getItemSeq()))
                                     .name(safeStr(it.getItemName()))
                                     .thumbnailUrl(safeStr(it.getItemImage()))
+                                    .bookmarked(false)  
                                     .build();
                         } catch (Exception ex) {
                             log.warn("Failed to map MfdsEasyDrugItem to SearchItem: itemSeq={}", it.getItemSeq(), ex);
