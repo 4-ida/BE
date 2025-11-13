@@ -5,6 +5,7 @@ import com.pillmate.pillmate.DTO.*;
 import com.pillmate.pillmate.Repository.IntakeRepository;
 import com.pillmate.pillmate.Repository.ScheduleRepository;
 import com.pillmate.pillmate.Repository.UserRepository;
+import java.time.LocalTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -112,6 +113,13 @@ public class IntakeService {
 			finalAmount *= (req.getIntakeRatio() / 100.0);
 		}
 
+		LocalDateTime intakeAt = resolveIntakeAt(
+			req.getIntakeAt(),
+			req.getMeridiem(),
+			req.getHour(),
+			req.getMinute()
+		);
+
 		Intake intake = Intake.builder()
 			.userId(userId)  // JWT 토큰에서 가져온 userId 사용
 			.beverageName(req.getBeverageName())
@@ -174,6 +182,13 @@ public class IntakeService {
 			finalAmount = volumePerCup * cupCount;
 			finalAbv = getAbvByType(req.getAlcoholType());
 		}
+
+		LocalDateTime intakeAt = resolveIntakeAt(
+			req.getIntakeAt(),
+			req.getMeridiem(),
+			req.getHour(),
+			req.getMinute()
+		);
 
 		Intake intake = Intake.builder()
 			.userId(userId)  // JWT 토큰에서 가져온 userId 사용
@@ -578,6 +593,27 @@ public class IntakeService {
 			.caffeineTimer(caffeineTimer)
 			.alcoholTimer(alcoholTimer)
 			.build();
+	}
+	private LocalDateTime resolveIntakeAt(LocalDateTime base,
+		String meridiem,
+		Integer hour,
+		Integer minute) {
+
+		// 세 개 중 하나라도 없으면 예전 방식 유지
+		if (meridiem == null || hour == null || minute == null) {
+			return (base != null) ? base : LocalDateTime.now();
+		}
+
+		// 12시간제 → 24시간제 변환
+		int h = hour % 12; // 12시는 0으로
+		if ("오후".equals(meridiem) || "PM".equalsIgnoreCase(meridiem)) {
+			h += 12;
+		}
+
+		// 날짜: base가 있으면 그 날짜, 없으면 오늘
+		LocalDate date = (base != null) ? base.toLocalDate() : LocalDate.now();
+
+		return LocalDateTime.of(date, LocalTime.of(h, minute));
 	}
 
 }
