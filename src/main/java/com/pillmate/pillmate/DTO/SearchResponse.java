@@ -19,6 +19,7 @@ public class SearchResponse {
         private String drugId;       // 식약처 품목기준코드 (itemSeq)
         private String name;         // 제품명
         private String thumbnailUrl; // 함량
+        private boolean bookmarked;
     }
 
     private Query query;
