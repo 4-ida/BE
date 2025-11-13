@@ -25,8 +25,8 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     @Query("SELECT s FROM Schedule s WHERE s.date = :date ORDER BY s.alarmAt")
     List<Schedule> findByDate(@Param("date") LocalDate date);
     
-    // 특정 기간의 일정 조회
-    @Query("SELECT s FROM Schedule s WHERE s.date >= :startDate AND s.date <= :endDate ORDER BY s.date, s.alarmAt")
+    // 특정 기간의 일정 조회 (LocalDate를 받아서 해당 날짜 범위의 모든 일정 조회)
+    @Query("SELECT s FROM Schedule s WHERE DATE(s.date) >= :startDate AND DATE(s.date) <= :endDate ORDER BY s.date, s.alarmAt")
     List<Schedule> findByDateRange(@Param("startDate") LocalDate startDate, 
                                     @Param("endDate") LocalDate endDate);
     
@@ -36,8 +36,8 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     // 사용자, 약물, 상태로 일정 조회
     List<Schedule> findByUserIdAndDrugIdAndStatus(Long userId, Long drugId, com.pillmate.pillmate.Domain.ScheduleStatus status);
     
-    // 사용자, 날짜로 일정 조회
-    @Query("SELECT s FROM Schedule s WHERE s.userId = :userId AND s.date = :date ORDER BY s.alarmAt")
+    // 사용자, 날짜로 일정 조회 (LocalDate를 받아서 해당 날짜의 모든 일정 조회)
+    @Query("SELECT s FROM Schedule s WHERE s.userId = :userId AND DATE(s.date) = :date ORDER BY s.alarmAt")
     List<Schedule> findByUserIdAndDate(@Param("userId") Long userId, @Param("date") LocalDate date);
     
     // 사용자, 기간별 일정 개수 조회

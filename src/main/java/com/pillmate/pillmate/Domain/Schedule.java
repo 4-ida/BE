@@ -47,7 +47,7 @@ public class Schedule {
     private String dose;  // 복용량 또는 용법
     
     @Column(nullable = false)
-    private LocalDate date;  // 복용 날짜 (단일 날짜)
+    private LocalDateTime date;  // 복용 날짜 및 시각
     
     @Column(nullable = false)
     private LocalDateTime alarmAt;  // 복용 예정 시각
@@ -100,7 +100,7 @@ public class Schedule {
         this.alarmEnabled = alarmEnabled;
     }
     
-    public void updateDate(LocalDate date) {
+    public void updateDate(LocalDateTime date) {
         this.date = date;
     }
     

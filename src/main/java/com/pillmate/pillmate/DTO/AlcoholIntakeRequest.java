@@ -20,9 +20,6 @@ public class AlcoholIntakeRequest {
 	@Schema(description = "잔 크기 변경 시 개별 잔 용량(mL). 카테고리 선택 시 기본 용량 대신 사용", example = "330.0")
 	private Double customVolumeMl;
 	
-	@Schema(description = "사용자가 직접 입력한 총 용량(mL). volumeMl이 제공되면 잔 단위 계산 없이 그대로 사용", example = "1000.0")
-	private Double volumeMl;
-	
 	@Schema(description = "직접 입력 사용 여부. true면 customAbv와 customVolumeMl을 사용 (우선순위 최상)", example = "false")
 	private Boolean useCustomInput;
 	
