@@ -286,13 +286,16 @@ public class ScheduleService {
         boolean planCancelled = false;
         if (request.getPlan() != null) {
             String planValue = request.getPlan().trim().toUpperCase();
-            if ("CANCELLED".equals(planValue)) {
+            // CANCELED와 CANCELLED 둘 다 허용 (미국/영국 영어 철자 차이)
+            if ("CANCELLED".equals(planValue) || "CANCELED".equals(planValue)) {
                 schedule.updateStatus(ScheduleStatus.CANCELLED);
                 planCancelled = true;
+                log.debug("일정 취소 - scheduleId: {}, plan: {}", scheduleId, planValue);
             } else if ("SCHEDULED".equals(planValue)) {
                 // CANCELLED에서 SCHEDULED로 복구 (단, status가 TAKEN/MISSED가 아니면)
                 if (schedule.getStatus() == ScheduleStatus.CANCELLED) {
                     schedule.updateStatus(ScheduleStatus.SCHEDULED);
+                    log.debug("일정 복구 - scheduleId: {}, CANCELLED -> SCHEDULED", scheduleId);
                 }
             }
         }
