@@ -1,0 +1,127 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main  # main 브랜치에 push될 때 실행
+  workflow_dispatch:  # 수동 실행 가능
+
+env:
+  DOCKER_IMAGE: kimjuhui/spring-app
+  DOCKER_TAG: latest
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build with Gradle
+        run: ./gradlew clean build -x test
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
+          cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache,mode=max
+
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} << 'EOF'
+            # Docker Hub에서 최신 이미지 pull
+            docker pull ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
+            
+            # 기존 컨테이너 중지 및 제거
+            docker stop spring-app || true
+            docker rm spring-app || true
+            
+            # docker-compose를 사용하여 배포
+            # 환경 변수는 서버의 .env 파일이나 환경 변수로 설정되어 있어야 함
+            cd /path/to/your/project || cd ~/pillmate/BE || pwd
+            
+            # docker-compose가 있는 경우 사용, 없으면 직접 docker run
+            if [ -f docker-compose.yml ]; then
+              docker-compose pull
+              docker-compose up -d
+            else
+              # docker-compose가 없는 경우 직접 실행
+              docker run -d \
+                --name spring-app \
+                --network bridge \
+                -p 8080:8080 \
+                -e SPRING_DATASOURCE_URL="$SPRING_DATASOURCE_URL" \
+                -e SPRING_DATASOURCE_USERNAME="$SPRING_DATASOURCE_USERNAME" \
+                -e SPRING_DATASOURCE_PASSWORD="$SPRING_DATASOURCE_PASSWORD" \
+                -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
+                -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
+                -e KAKAO_CLIENT_ID="$KAKAO_CLIENT_ID" \
+                -e KAKAO_CLIENT_SECRET="$KAKAO_CLIENT_SECRET" \
+                -e NAVER_CLIENT_ID="$NAVER_CLIENT_ID" \
+                -e NAVER_CLIENT_SECRET="$NAVER_CLIENT_SECRET" \
+                -e MFDS_SERVICE_KEY="$MFDS_SERVICE_KEY" \
+                -e SPRING_PROFILES_ACTIVE=prod \
+                --restart unless-stopped \
+                ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
+            fi
+            
+            # 컨테이너 상태 확인
+            sleep 5
+            docker ps | grep spring-app
+            docker logs --tail 50 spring-app
+          EOF
+
+      - name: Verify deployment
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} << 'EOF'
+            echo "=== 배포 검증 ==="
+            echo "컨테이너 상태:"
+            docker ps | grep spring-app || echo "컨테이너가 실행 중이 아닙니다"
+            echo ""
+            echo "최근 로그:"
+            docker logs --tail 20 spring-app || echo "로그를 가져올 수 없습니다"
+          EOF
+
