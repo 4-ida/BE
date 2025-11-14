@@ -639,12 +639,15 @@ public class IntakeService {
 					
 					// 활성 타이머만 포함 (아직 복약 불가능한 경우, isSafe가 false인 경우)
 					if (timer != null && !timer.getIsSafe()) {
+						// beverageName이 null인 경우 기본값 제공
+						String beverageName = intake.getBeverageName() != null ? intake.getBeverageName() : "알코올";
+
 						alcoholTimer = ActiveTimerListResponse.ActiveTimerItem.builder()
 							.intakeId(intake.getIntakeId())
 							.intakeType("ALCOHOL")
-							.name(intake.getBeverageName())
+							.name(beverageName)
 							.amount(intake.getAmount())
-							.abv(intake.getAbv() != null ? intake.getAbv() : getAbvByType(intake.getBeverageName()))
+							.abv(intake.getAbv() != null ? intake.getAbv() : getAbvByType(beverageName))
 							.intakeAt(intake.getCreatedAt())
 							.currentAmount(timer.getCurrentAmount())
 							.remainingSec(timer.getRemainingSec())
