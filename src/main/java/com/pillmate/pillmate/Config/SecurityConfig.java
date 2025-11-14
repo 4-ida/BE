@@ -116,7 +116,8 @@ public class SecurityConfig {
             "http://127.0.0.1:8080", 
             "http://127.0.0.1:3000",
             "http://127.0.0.1:5173",  // Vite 개발 서버
-            "https://pillmate.lion.it.kr" // 프로덕션 도메인
+            "https://pillmate.lion.it.kr", // 프로덕션 도메인
+            "https://pillmate-three.vercel.app" // Vercel 배포 도메인
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));

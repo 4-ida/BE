@@ -98,8 +98,23 @@ public class IntakeController {
 	// ===========================
 	// 7️⃣ 카페인 잔존 타이머 조회
 	// ===========================
-	@Operation(summary = "카페인 잔존 타이머 조회",
-		description = "카페인 섭취 후 약 복용 가능 시간을 계산합니다. 사용자의 카페인 민감도와 복용 중인 약물의 보정계수가 적용됩니다.")
+	@Operation(
+		summary = "카페인 잔존 타이머 조회",
+		description = """
+			카페인 섭취 후 약 복용 가능 시간을 계산합니다.
+
+			**계산 로직:**
+			- 현재 잔존량(mg) = 초기 섭취량 × (0.5)^(경과시간/반감기)
+			- 복약 가능 기준: 30mg 미만
+			- 사용자의 카페인 민감도(반감기)와 복용 중인 약물의 보정계수 적용
+
+			**응답 예시 (intakeType: "CAFFEINE"):**
+			- currentAmount: 75.5 (현재 75.5mg 잔존)
+			- threshold: 30.0 (30mg 미만일 때 복약 가능)
+			- halfLifeOrRate: 5.0 (반감기 5시간)
+			- adjustmentFactor: 2.0 (항생제 복용 시)
+			"""
+	)
 	@ApiResponses({
 		@ApiResponse(responseCode = "200", description = "조회 성공"),
 		@ApiResponse(responseCode = "400", description = "요청 데이터가 잘못됨"),
@@ -117,8 +132,24 @@ public class IntakeController {
 	// ===========================
 	// 8️⃣ 알코올 잔존 타이머 조회
 	// ===========================
-	@Operation(summary = "알코올 잔존 타이머 조회",
-		description = "알코올 섭취 후 약 복용 가능 시간을 계산합니다. 사용자의 음주 패턴과 복용 중인 약물의 보정계수가 적용됩니다.")
+	@Operation(
+		summary = "알코올 잔존 타이머 조회",
+		description = """
+			알코올 섭취 후 약 복용 가능 시간을 계산합니다.
+
+			**계산 로직:**
+			- BAC_peak ≈ 0.02 × 표준잔 수
+			- 현재 BAC = max(0, BAC_peak - 대사속도 × 경과시간)
+			- 복약 가능 기준: 0.02% BAC 미만
+			- 사용자의 음주 패턴(대사속도)과 복용 중인 약물의 보정계수 적용
+
+			**응답 예시 (intakeType: "ALCOHOL"):**
+			- currentAmount: 3.4 (현재 0.034% BAC, 백분율로 표시)
+			- threshold: 2.0 (0.02% BAC 미만일 때 복약 가능, 백분율로 표시)
+			- halfLifeOrRate: 0.013 (대사속도 0.013 %BAC/시간)
+			- adjustmentFactor: 1.5 (수면제 복용 시)
+			"""
+	)
 	@ApiResponses({
 		@ApiResponse(responseCode = "200", description = "조회 성공"),
 		@ApiResponse(responseCode = "400", description = "요청 데이터가 잘못됨"),
@@ -136,8 +167,24 @@ public class IntakeController {
 	// ===========================
 	// 9️⃣ 활성 타이머 리스트 조회
 	// ===========================
-	@Operation(summary = "활성 타이머 리스트 조회",
-		description = "사용자의 카페인/알코올 최신 섭취 기록 중 활성 타이머(아직 복약 불가능한 상태)를 조회합니다. 카페인과 알코올 각각 최신 1개씩 반환됩니다.")
+	@Operation(
+		summary = "활성 타이머 리스트 조회",
+		description = """
+			사용자의 카페인/알코올 최신 섭취 기록 중 활성 타이머(아직 복약 불가능한 상태)를 조회합니다.
+
+			**조회 로직:**
+			- 최신 섭취 기록부터 확인하여 isSafe=false인 첫 번째 기록만 반환
+			- 카페인: 잔존량 > 30mg인 경우 활성
+			- 알코올: BAC > 0.02%인 경우 활성
+			- 각각 최신 1개씩만 반환 (총 최대 2개)
+
+			**응답 구조:**
+			- caffeineTimer: 카페인 활성 타이머 (없으면 null)
+			- alcoholTimer: 알코올 활성 타이머 (없으면 null)
+
+			각 타이머 객체는 ResidualTimerResponse와 동일한 구조로 intakeType, currentAmount 등 포함
+			"""
+	)
 	@ApiResponses({
 		@ApiResponse(responseCode = "200", description = "조회 성공"),
 		@ApiResponse(responseCode = "401", description = "인증되지 않음")
