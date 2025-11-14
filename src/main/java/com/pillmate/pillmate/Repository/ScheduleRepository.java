@@ -26,9 +26,9 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     List<Schedule> findByDate(@Param("date") LocalDate date);
     
     // 특정 기간의 일정 조회 (LocalDate를 받아서 해당 날짜 범위의 모든 일정 조회)
-    @Query("SELECT s FROM Schedule s WHERE DATE(s.date) >= :startDate AND DATE(s.date) <= :endDate ORDER BY s.date, s.alarmAt")
-    List<Schedule> findByDateRange(@Param("startDate") LocalDate startDate, 
-                                    @Param("endDate") LocalDate endDate);
+    @Query("SELECT s FROM Schedule s WHERE s.date >= :startDateTime AND s.date < :endDateTime ORDER BY s.date, s.alarmAt")
+    List<Schedule> findByDateRange(@Param("startDateTime") LocalDateTime startDateTime,
+                                    @Param("endDateTime") LocalDateTime endDateTime);
     
     // 사용자별 일정 개수 조회
     int countByUserId(Long userId);
@@ -37,27 +37,29 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     List<Schedule> findByUserIdAndDrugIdAndStatus(Long userId, Long drugId, com.pillmate.pillmate.Domain.ScheduleStatus status);
     
     // 사용자, 날짜로 일정 조회 (LocalDate를 받아서 해당 날짜의 모든 일정 조회)
-    @Query("SELECT s FROM Schedule s WHERE s.userId = :userId AND DATE(s.date) = :date ORDER BY s.alarmAt")
-    List<Schedule> findByUserIdAndDate(@Param("userId") Long userId, @Param("date") LocalDate date);
+    @Query("SELECT s FROM Schedule s WHERE s.userId = :userId AND s.date >= :startOfDay AND s.date < :startOfNextDay ORDER BY s.alarmAt")
+    List<Schedule> findByUserIdAndDate(@Param("userId") Long userId,
+                                        @Param("startOfDay") LocalDateTime startOfDay,
+                                        @Param("startOfNextDay") LocalDateTime startOfNextDay);
     
     // 사용자, 기간별 일정 개수 조회
-    @Query("SELECT COUNT(s) FROM Schedule s WHERE s.userId = :userId AND s.date >= :startDate AND s.date <= :endDate")
-    int countByUserIdAndDateRange(@Param("userId") Long userId, 
-                                   @Param("startDate") LocalDate startDate, 
-                                   @Param("endDate") LocalDate endDate);
-    
+    @Query("SELECT COUNT(s) FROM Schedule s WHERE s.userId = :userId AND s.date >= :startDateTime AND s.date < :endDateTime")
+    int countByUserIdAndDateRange(@Param("userId") Long userId,
+                                   @Param("startDateTime") LocalDateTime startDateTime,
+                                   @Param("endDateTime") LocalDateTime endDateTime);
+
     // 사용자, 기간별, 상태별 일정 개수 조회
-    @Query("SELECT COUNT(s) FROM Schedule s WHERE s.userId = :userId AND s.status = :status AND s.date >= :startDate AND s.date <= :endDate")
-    int countByUserIdAndStatusAndDateRange(@Param("userId") Long userId, 
+    @Query("SELECT COUNT(s) FROM Schedule s WHERE s.userId = :userId AND s.status = :status AND s.date >= :startDateTime AND s.date < :endDateTime")
+    int countByUserIdAndStatusAndDateRange(@Param("userId") Long userId,
                                             @Param("status") com.pillmate.pillmate.Domain.ScheduleStatus status,
-                                            @Param("startDate") LocalDate startDate, 
-                                            @Param("endDate") LocalDate endDate);
-    
+                                            @Param("startDateTime") LocalDateTime startDateTime,
+                                            @Param("endDateTime") LocalDateTime endDateTime);
+
     // 사용자, 기간별, 상태가 아닌 일정 개수 조회 (CANCELLED 제외용)
-    @Query("SELECT COUNT(s) FROM Schedule s WHERE s.userId = :userId AND s.status != :status AND s.date >= :startDate AND s.date <= :endDate")
-    int countByUserIdAndStatusNotAndDateRange(@Param("userId") Long userId, 
+    @Query("SELECT COUNT(s) FROM Schedule s WHERE s.userId = :userId AND s.status != :status AND s.date >= :startDateTime AND s.date < :endDateTime")
+    int countByUserIdAndStatusNotAndDateRange(@Param("userId") Long userId,
                                                @Param("status") com.pillmate.pillmate.Domain.ScheduleStatus status,
-                                               @Param("startDate") LocalDate startDate, 
-                                               @Param("endDate") LocalDate endDate);
+                                               @Param("startDateTime") LocalDateTime startDateTime,
+                                               @Param("endDateTime") LocalDateTime endDateTime);
 
 }

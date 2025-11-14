@@ -5,6 +5,7 @@ import java.time.LocalTime;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -16,7 +17,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Schema(description = "복약 일정 수정 요청")
 public class ScheduleUpdateRequest {
-    
+
+    @Min(value = 1, message = "약품 ID는 1 이상이어야 합니다")
     @Schema(description = "약품 ID (자동완성에서 선택한 약품의 ID)", example = "12")
     private Long drugId;
     

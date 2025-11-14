@@ -47,18 +47,22 @@ public class DashboardService {
 		LocalDate firstDayOfMonth = LocalDate.of(year, month, 1);
 		LocalDate lastDayOfMonth = firstDayOfMonth.withDayOfMonth(firstDayOfMonth.lengthOfMonth());
 
+		// LocalDate를 LocalDateTime으로 변환
+		java.time.LocalDateTime startDateTime = firstDayOfMonth.atStartOfDay();
+		java.time.LocalDateTime endDateTime = lastDayOfMonth.plusDays(1).atStartOfDay();
+
 		// 1. 해당 기간 내에 등록된 전체 복용 계획 개수 (CANCELLED 제외)
 		// SCHEDULED, TAKEN, MISSED 상태만 포함
 		int totalPlanned = scheduleRepository.countByUserIdAndStatusNotAndDateRange(
-			userId, ScheduleStatus.CANCELLED, firstDayOfMonth, lastDayOfMonth);
+			userId, ScheduleStatus.CANCELLED, startDateTime, endDateTime);
 
 		// 2. 실제 섭취(기록)된 개수 - TAKEN 상태인 일정 개수
 		int completed = scheduleRepository.countByUserIdAndStatusAndDateRange(
-			userId, ScheduleStatus.TAKEN, firstDayOfMonth, lastDayOfMonth);
+			userId, ScheduleStatus.TAKEN, startDateTime, endDateTime);
 
 		// 3. 누락 (MISSED 상태인 일정 개수)
 		int missed = scheduleRepository.countByUserIdAndStatusAndDateRange(
-			userId, ScheduleStatus.MISSED, firstDayOfMonth, lastDayOfMonth);
+			userId, ScheduleStatus.MISSED, startDateTime, endDateTime);
 
 		// 4. 진행률 계산 (totalPlanned가 0이면 0%, 아니면 completed / totalPlanned * 100)
 		int adherencePercent = (totalPlanned == 0)

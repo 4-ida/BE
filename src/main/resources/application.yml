@@ -25,6 +25,7 @@ spring:
     database-platform: org.hibernate.dialect.MySQL8Dialect
     properties:
       hibernate.format_sql: true
+      hibernate.jdbc.time_zone: Asia/Seoul
 
 
 # 로깅 레벨 설정: SQL을 더 자세히 보고 싶을 때 사용

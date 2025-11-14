@@ -1,6 +1,7 @@
 package com.pillmate.pillmate.DTO;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,12 +16,14 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Schema(description = "복용 완료 기록 요청")
 public class MedicationIntakeRequest {
-    
+
     @NotNull(message = "일정 ID는 필수입니다")
+    @Min(value = 1, message = "일정 ID는 1 이상이어야 합니다")
     @Schema(description = "복용한 일정 ID", example = "101", required = true)
     private Long scheduleId;
-    
+
     @NotNull(message = "약품 ID는 필수입니다")
+    @Min(value = 1, message = "약품 ID는 1 이상이어야 합니다")
     @Schema(description = "복용한 약품 ID", example = "12", required = true)
     private Long drugId;
     

@@ -469,8 +469,12 @@ public class IntakeService {
 	 * @return 약물군 보정계수 (없으면 1.0, 여러 개면 최대값)
 	 */
 	private double findMaxAdjustmentFactor(Long userId, LocalDate targetDate) {
+		// LocalDate를 LocalDateTime 범위로 변환 (00:00:00 ~ 23:59:59.999999999)
+		LocalDateTime startOfDay = targetDate.atStartOfDay();
+		LocalDateTime startOfNextDay = targetDate.plusDays(1).atStartOfDay();
+
 		// 특정 날짜 기준으로 복약 일정 조회 (SCHEDULED 상태만)
-		List<Schedule> allSchedules = scheduleRepository.findByUserIdAndDate(userId, targetDate);
+		List<Schedule> allSchedules = scheduleRepository.findByUserIdAndDate(userId, startOfDay, startOfNextDay);
 		List<Schedule> activeSchedules = allSchedules.stream()
 			.filter(s -> s.getStatus() == ScheduleStatus.SCHEDULED)
 			.collect(Collectors.toList());

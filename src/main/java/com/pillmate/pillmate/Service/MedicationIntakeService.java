@@ -35,10 +35,15 @@ public class MedicationIntakeService {
     
     @Transactional
     public MedicationIntakeResponse recordIntake(MedicationIntakeRequest request) {
+        // 약품 ID 검증 (0이나 음수는 허용하지 않음)
+        if (request.getDrugId() == null || request.getDrugId() <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "유효하지 않은 약품 ID입니다. 약품 ID는 필수이며 0이 될 수 없습니다.");
+        }
+
         // 일정 존재 확인
         Schedule schedule = scheduleRepository.findById(request.getScheduleId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 일정입니다"));
-        
+
         // 일정의 약품 ID와 요청의 약품 ID 일치 확인
         if (!schedule.getDrugId().equals(request.getDrugId())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "일정의 약품 ID와 요청의 약품 ID가 일치하지 않습니다");
@@ -327,19 +332,23 @@ public class MedicationIntakeService {
     
     /**
      * 사용자의 복약 일정에서 특정 날짜의 약물에 대한 보정계수 찾기
-     * 
+     *
      * 로직:
      * 1. 특정 날짜의 복약 일정 조회 (SCHEDULED 상태만)
      * 2. 일정이 없으면 보정계수 적용 안 함 (기본값 1.0 반환)
      * 3. 여러 개의 약물이 있으면 보정계수가 가장 높은 것을 반환
-     * 
+     *
      * @param userId 사용자 ID
      * @param targetDate 조회할 날짜 (복용 날짜)
      * @return 약물군 보정계수 (없으면 1.0, 여러 개면 최대값)
      */
     private double findMaxAdjustmentFactor(Long userId, LocalDate targetDate) {
+        // LocalDate를 LocalDateTime 범위로 변환 (00:00:00 ~ 23:59:59.999999999)
+        LocalDateTime startOfDay = targetDate.atStartOfDay();
+        LocalDateTime startOfNextDay = targetDate.plusDays(1).atStartOfDay();
+
         // 특정 날짜 기준으로 복약 일정 조회 (SCHEDULED 상태만)
-        List<Schedule> allSchedules = scheduleRepository.findByUserIdAndDate(userId, targetDate);
+        List<Schedule> allSchedules = scheduleRepository.findByUserIdAndDate(userId, startOfDay, startOfNextDay);
         List<Schedule> activeSchedules = allSchedules.stream()
             .filter(s -> s.getStatus() == ScheduleStatus.SCHEDULED)
             .collect(Collectors.toList());

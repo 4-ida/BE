@@ -5,6 +5,7 @@ import java.time.LocalTime;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -18,8 +19,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Schema(description = "복약 일정 등록 요청")
 public class ScheduleRequest {
-    
+
     @NotNull(message = "약품 ID는 필수입니다")
+    @Min(value = 1, message = "약품 ID는 1 이상이어야 합니다")
     @Schema(description = "약품 ID", example = "12", required = true)
     private Long drugId;
     

@@ -19,6 +19,7 @@ import com.pillmate.pillmate.Repository.MedicationIntakeRepository;
 import com.pillmate.pillmate.Service.MedicationIntakeService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -27,6 +28,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -39,6 +41,11 @@ public class ScheduleService {
     
     @Transactional
     public ScheduleResponse createSchedule(Long userId, ScheduleRequest request) {
+        // 약품 ID 검증 (0이나 음수는 허용하지 않음)
+        if (request.getDrugId() == null || request.getDrugId() <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "유효하지 않은 약품 ID입니다. 약품 ID는 필수이며 0이 될 수 없습니다.");
+        }
+
         DrugDetailResponse drugDetail = fetchDrugDetailOrThrow(request.getDrugId());
         String resolvedDrugName = resolveDrugName(request, drugDetail);
         boolean alarmEnabled = resolveAlarmEnabled(request);
@@ -48,10 +55,13 @@ public class ScheduleService {
         
         // date와 time을 합쳐서 LocalDateTime 생성
         LocalDateTime scheduleDateTime = request.getDate().atTime(request.getTime());
-        
+
+        log.debug("일정 등록 - userId: {}, drugId: {}, drugName: {}, requestDate: {}, requestTime: {}, scheduleDateTime: {}",
+                userId, request.getDrugId(), resolvedDrugName, request.getDate(), request.getTime(), scheduleDateTime);
+
         // alarmAt을 복용 시각에서 30분 전으로 자동 계산
         LocalDateTime alarmAt = scheduleDateTime.minus(30, ChronoUnit.MINUTES);
-        
+
         // 일정 생성 (단일 날짜만 사용, 복용 기간 제거)
         Schedule schedule = Schedule.builder()
                 .userId(userId)
@@ -67,8 +77,10 @@ public class ScheduleService {
                 .repeatRule(null)
                 .status(resolvedStatus)
                 .build();
-        
+
         Schedule savedSchedule = scheduleRepository.save(schedule);
+
+        log.debug("일정 저장 완료 - scheduleId: {}, savedDate: {}", savedSchedule.getScheduleId(), savedSchedule.getDate());
         
         // 등록 시에는 plan과 status가 없으므로 null 전달 (응답에서 plan은 "SCHEDULED", status는 null 반환)
         return ScheduleResponse.from(savedSchedule, null, null);
@@ -103,8 +115,19 @@ public class ScheduleService {
      */
     @Transactional(readOnly = false)
     public List<ScheduleResponse> getSchedulesByDate(Long userId, LocalDate date) {
-        List<Schedule> schedules = scheduleRepository.findByUserIdAndDate(userId, date);
-        
+        // LocalDate를 LocalDateTime 범위로 변환 (00:00:00 ~ 23:59:59.999999999)
+        LocalDateTime startOfDay = date.atStartOfDay();
+        LocalDateTime startOfNextDay = date.plusDays(1).atStartOfDay();
+
+        log.debug("일정 조회 - userId: {}, date: {}, startOfDay: {}, startOfNextDay: {}",
+                userId, date, startOfDay, startOfNextDay);
+
+        List<Schedule> schedules = scheduleRepository.findByUserIdAndDate(userId, startOfDay, startOfNextDay);
+
+        log.debug("조회된 일정 수: {}", schedules.size());
+        schedules.forEach(s -> log.debug("일정 - scheduleId: {}, date: {}, drugName: {}",
+                s.getScheduleId(), s.getDate(), s.getDrugName()));
+
         LocalDateTime now = LocalDateTime.now();
         
         // 날짜가 지난 SCHEDULED 일정을 자동으로 MISSED로 변경
@@ -132,8 +155,12 @@ public class ScheduleService {
         if (from.isAfter(to)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "시작일은 종료일보다 이전이어야 합니다");
         }
-        
-        List<Schedule> schedules = scheduleRepository.findByDateRange(from, to);
+
+        // LocalDate를 LocalDateTime 범위로 변환
+        LocalDateTime startDateTime = from.atStartOfDay();
+        LocalDateTime endDateTime = to.plusDays(1).atStartOfDay();
+
+        List<Schedule> schedules = scheduleRepository.findByDateRange(startDateTime, endDateTime);
         // 사용자 필터링
         List<Schedule> userSchedules = schedules.stream()
                 .filter(s -> s.getUserId().equals(userId))
@@ -159,23 +186,27 @@ public class ScheduleService {
      * @param userId 사용자 ID
      * @param year 년도 (예: 2025)
      * @param month 월 (1-12)
-     * @return 해당 월의 일정 목록 (날짜별로 그룹화)
+     * @return 해당 월의 일정 목록 (날짜별로 그룹화, 날짜순 정렬)
      */
     public java.util.Map<LocalDate, List<ScheduleResponse>> getSchedulesByMonth(Long userId, int year, int month) {
         if (month < 1 || month > 12) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "월은 1부터 12 사이의 값이어야 합니다");
         }
-        
+
         // 해당 월의 첫 날과 마지막 날 계산
         LocalDate firstDayOfMonth = LocalDate.of(year, month, 1);
         LocalDate lastDayOfMonth = firstDayOfMonth.withDayOfMonth(firstDayOfMonth.lengthOfMonth());
-        
+
         // 해당 월의 모든 일정 조회
         List<ScheduleResponse> schedules = getSchedulesByDateRange(userId, firstDayOfMonth, lastDayOfMonth);
-        
-        // 날짜별로 그룹화
+
+        // 날짜별로 그룹화 (TreeMap 사용으로 날짜순 정렬 보장)
         return schedules.stream()
-                .collect(Collectors.groupingBy(ScheduleResponse::getDate));
+                .collect(Collectors.groupingBy(
+                    ScheduleResponse::getDate,
+                    java.util.TreeMap::new,
+                    Collectors.toList()
+                ));
     }
     
     /**
@@ -189,12 +220,17 @@ public class ScheduleService {
     public ScheduleUpdateResponse updateSchedule(Long scheduleId, Long userId, ScheduleUpdateRequest request) {
         Schedule schedule = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "일정을 찾을 수 없습니다"));
-        
+
         // 사용자 검증
         if (!schedule.getUserId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "해당 일정을 수정할 권한이 없습니다");
         }
-        
+
+        // 약품 ID 검증 (0이나 음수는 허용하지 않음)
+        if (request.getDrugId() != null && request.getDrugId() <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "유효하지 않은 약품 ID입니다. 약품 ID는 필수이며 0이 될 수 없습니다.");
+        }
+
         // 약품 변경 처리 (drugId가 제공되면 새로운 약품으로 변경)
         Long targetDrugId = request.getDrugId() != null ? request.getDrugId() : schedule.getDrugId();
         
