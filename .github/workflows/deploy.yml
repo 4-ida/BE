@@ -44,7 +44,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./dockerfile
+          file: ./Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
@@ -72,6 +72,17 @@ jobs:
           docker rm spring-app || true
 
       - name: Deploy with docker-compose or docker run
+        env:
+          SPRING_DATASOURCE_URL: ${{ secrets.SPRING_DATASOURCE_URL }}
+          SPRING_DATASOURCE_USERNAME: ${{ secrets.SPRING_DATASOURCE_USERNAME }}
+          SPRING_DATASOURCE_PASSWORD: ${{ secrets.SPRING_DATASOURCE_PASSWORD }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          KAKAO_CLIENT_ID: ${{ secrets.KAKAO_CLIENT_ID }}
+          KAKAO_CLIENT_SECRET: ${{ secrets.KAKAO_CLIENT_SECRET }}
+          NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
+          NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
+          MFDS_SERVICE_KEY: ${{ secrets.MFDS_SERVICE_KEY }}
         run: |
           # docker-compose가 있는 경우 사용, 없으면 직접 docker run
           if [ -f docker-compose.yml ]; then
@@ -85,16 +96,16 @@ jobs:
               --name spring-app \
               --network bridge \
               -p 8080:8080 \
-              -e SPRING_DATASOURCE_URL="$SPRING_DATASOURCE_URL" \
-              -e SPRING_DATASOURCE_USERNAME="$SPRING_DATASOURCE_USERNAME" \
-              -e SPRING_DATASOURCE_PASSWORD="$SPRING_DATASOURCE_PASSWORD" \
-              -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
-              -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
-              -e KAKAO_CLIENT_ID="$KAKAO_CLIENT_ID" \
-              -e KAKAO_CLIENT_SECRET="$KAKAO_CLIENT_SECRET" \
-              -e NAVER_CLIENT_ID="$NAVER_CLIENT_ID" \
-              -e NAVER_CLIENT_SECRET="$NAVER_CLIENT_SECRET" \
-              -e MFDS_SERVICE_KEY="$MFDS_SERVICE_KEY" \
+              -e SPRING_DATASOURCE_URL="${SPRING_DATASOURCE_URL}" \
+              -e SPRING_DATASOURCE_USERNAME="${SPRING_DATASOURCE_USERNAME}" \
+              -e SPRING_DATASOURCE_PASSWORD="${SPRING_DATASOURCE_PASSWORD}" \
+              -e GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID}" \
+              -e GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET}" \
+              -e KAKAO_CLIENT_ID="${KAKAO_CLIENT_ID}" \
+              -e KAKAO_CLIENT_SECRET="${KAKAO_CLIENT_SECRET}" \
+              -e NAVER_CLIENT_ID="${NAVER_CLIENT_ID}" \
+              -e NAVER_CLIENT_SECRET="${NAVER_CLIENT_SECRET}" \
+              -e MFDS_SERVICE_KEY="${MFDS_SERVICE_KEY}" \
               -e SPRING_PROFILES_ACTIVE=prod \
               --restart unless-stopped \
               ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
