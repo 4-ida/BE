@@ -5,7 +5,6 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 import org.springframework.core.env.Environment;
-import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -14,6 +13,7 @@ import org.springframework.util.StringUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pillmate.pillmate.Config.JwtUtil;
 import com.pillmate.pillmate.DTO.LoginResponse;
+import com.pillmate.pillmate.Domain.User;
 import com.pillmate.pillmate.Security.CustomUserDetails;
 import com.pillmate.pillmate.Service.UserService;
 
@@ -43,10 +43,11 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         String accessToken = jwtUtil.generateToken(userDetails.getEmail());
         
         // 사용자 정보
+        User user = userDetails.getUser();
         LoginResponse.UserInfo userInfo = LoginResponse.UserInfo.builder()
                 .id(userDetails.getId())
                 .email(userDetails.getEmail())
-                .name(userDetails.getUser().getName())
+                .name(user.getName())
                 .build();
         
         // Response 생성
