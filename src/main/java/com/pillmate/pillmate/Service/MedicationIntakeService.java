@@ -82,8 +82,8 @@ public class MedicationIntakeService {
      * 금지 타이머 계산
      * 기본 시간 × 보정 계수 방식으로 계산
      * TAKEN 상태로 변경되면 활성화되는 금지 타이머
-     * 해당 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 사용
-     * 
+     * 현재 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 사용
+     *
      * @param userId 사용자 ID
      * @param takenAt 복용 시각
      * @return 금지 타이머 리스트 (카페인, 알코올)
@@ -98,8 +98,8 @@ public class MedicationIntakeService {
      * 금지 타이머 계산 (public 메서드)
      * 기본 시간 × 보정 계수 방식으로 계산
      * TAKEN 상태로 변경되면 활성화되는 금지 타이머
-     * 해당 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 사용
-     * 
+     * 현재 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 사용
+     *
      * @param userId 사용자 ID
      * @param takenAt 복용 시각
      * @return 금지 타이머 리스트 (카페인, 알코올)
@@ -109,10 +109,10 @@ public class MedicationIntakeService {
             LocalDateTime takenAt) {
         
         List<BanTimerResponse> banTimers = new ArrayList<>();
-        
-        // 해당 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 조회
-        LocalDate targetDate = takenAt.toLocalDate();
-        double adjustmentFactor = findMaxAdjustmentFactor(userId, targetDate);
+
+        // 현재 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 조회
+        LocalDate today = LocalDate.now();
+        double adjustmentFactor = findMaxAdjustmentFactor(userId, today);
         
         // 현재 시간 기준으로 남은 금지 시간 계산
         LocalDateTime now = LocalDateTime.now();
@@ -157,15 +157,15 @@ public class MedicationIntakeService {
     /**
      * 카페인 금지 타이머 계산 (기본 시간 × 보정 계수)
      * TAKEN 상태로 변경되면 활성화되는 금지 타이머
-     * 해당 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 사용
-     * 
+     * 현재 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 사용
+     *
      * @param userId 사용자 ID
      * @param takenAt 복용 시각
      * @return 카페인 금지 타이머
      */
     public BanTimerResponse calculateCaffeineBanTimer(Long userId, LocalDateTime takenAt) {
-        LocalDate targetDate = takenAt.toLocalDate();
-        double adjustmentFactor = findMaxAdjustmentFactor(userId, targetDate);
+        LocalDate today = LocalDate.now();
+        double adjustmentFactor = findMaxAdjustmentFactor(userId, today);
         
         // 기본 시간(6시간) × 보정 계수
         long banSeconds = (long) (CAFFEINE_BASE_BAN_HOURS * 3600 * adjustmentFactor);
@@ -182,15 +182,15 @@ public class MedicationIntakeService {
     /**
      * 알코올 금지 타이머 계산 (기본 시간 × 보정 계수)
      * TAKEN 상태로 변경되면 활성화되는 금지 타이머
-     * 해당 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 사용
-     * 
+     * 현재 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 사용
+     *
      * @param userId 사용자 ID
      * @param takenAt 복용 시각
      * @return 알코올 금지 타이머
      */
     public BanTimerResponse calculateAlcoholBanTimer(Long userId, LocalDateTime takenAt) {
-        LocalDate targetDate = takenAt.toLocalDate();
-        double adjustmentFactor = findMaxAdjustmentFactor(userId, targetDate);
+        LocalDate today = LocalDate.now();
+        double adjustmentFactor = findMaxAdjustmentFactor(userId, today);
         
         // 기본 시간(7시간) × 보정 계수
         long banSeconds = (long) (ALCOHOL_BASE_BAN_HOURS * 3600 * adjustmentFactor);
@@ -241,10 +241,10 @@ public class MedicationIntakeService {
         }
         
         LocalDateTime takenAt = latestIntake.getTakenAt();
-        
-        // 해당 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 조회
-        LocalDate targetDate = takenAt.toLocalDate();
-        double adjustmentFactor = findMaxAdjustmentFactor(schedule.getUserId(), targetDate);
+
+        // 현재 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 조회
+        LocalDate today = LocalDate.now();
+        double adjustmentFactor = findMaxAdjustmentFactor(schedule.getUserId(), today);
         
         // 기본 금지 시간(6시간) × 보정 계수
         long totalBanSeconds = (long) (CAFFEINE_BASE_BAN_HOURS * 3600 * adjustmentFactor);
@@ -304,10 +304,10 @@ public class MedicationIntakeService {
         }
         
         LocalDateTime takenAt = latestIntake.getTakenAt();
-        
-        // 해당 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 조회
-        LocalDate targetDate = takenAt.toLocalDate();
-        double adjustmentFactor = findMaxAdjustmentFactor(schedule.getUserId(), targetDate);
+
+        // 현재 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 조회
+        LocalDate today = LocalDate.now();
+        double adjustmentFactor = findMaxAdjustmentFactor(schedule.getUserId(), today);
         
         // 기본 금지 시간(7시간) × 보정 계수
         long totalBanSeconds = (long) (ALCOHOL_BASE_BAN_HOURS * 3600 * adjustmentFactor);
@@ -339,7 +339,7 @@ public class MedicationIntakeService {
      * 3. 여러 개의 약물이 있으면 보정계수가 가장 높은 것을 반환
      *
      * @param userId 사용자 ID
-     * @param targetDate 조회할 날짜 (복용 날짜)
+     * @param targetDate 조회할 날짜 (현재 날짜 기준 - 활성 타이머 확인 시점의 복약 예정일)
      * @return 약물군 보정계수 (없으면 1.0, 여러 개면 최대값)
      */
     private double findMaxAdjustmentFactor(Long userId, LocalDate targetDate) {

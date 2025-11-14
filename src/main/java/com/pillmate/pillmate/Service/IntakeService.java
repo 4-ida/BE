@@ -112,6 +112,7 @@ public class IntakeService {
 			finalAmount *= (req.getIntakeRatio() / 100.0);
 		}
 
+		// meridiem, hour, minute을 고려한 섭취 시각 계산
 		LocalDateTime intakeAt = resolveIntakeAt(
 			req.getIntakeAt(),
 			req.getMeridiem(),
@@ -124,7 +125,7 @@ public class IntakeService {
 			.beverageName(req.getBeverageName())
 			.amount(finalAmount)
 			.intakeType(IntakeType.CAFFEINE)   // ← 고정 상수로 지정
-			.createdAt(req.getIntakeAt() != null ? req.getIntakeAt() : LocalDateTime.now())
+			.createdAt(intakeAt)  // resolveIntakeAt 결과 사용
 			.build();
 
 		intakeRepository.save(intake);
@@ -180,6 +181,7 @@ public class IntakeService {
 			}
 		}
 
+		// meridiem, hour, minute을 고려한 섭취 시각 계산
 		LocalDateTime intakeAt = resolveIntakeAt(
 			req.getIntakeAt(),
 			req.getMeridiem(),
@@ -193,7 +195,7 @@ public class IntakeService {
 			.amount(finalAmount)
 			.intakeType(IntakeType.ALCOHOL)
 			.abv(finalAbv)  // 도수 저장
-			.createdAt(req.getIntakeAt() != null ? req.getIntakeAt() : LocalDateTime.now())
+			.createdAt(intakeAt)  // resolveIntakeAt 결과 사용
 			.build();
 
 		intakeRepository.save(intake);
@@ -271,12 +273,12 @@ public class IntakeService {
 		
 		// 디버깅 로그
 		log.debug("카페인 잔존량 계산 - intakeId: {}, intakeAt: {}, now: {}, hoursPassed: {}h, initialMg: {}mg, halfLifeHours: {}h, currentMg: {}mg",
-			intakeId, intakeAt, now, String.format("%.2f", hoursPassed), String.format("%.2f", initialMg), 
+			intakeId, intakeAt, now, String.format("%.2f", hoursPassed), String.format("%.2f", initialMg),
 			String.format("%.2f", halfLifeHours), String.format("%.2f", currentMg));
-		
-		// 사용자가 복용 중인 약물 중 가장 높은 보정계수 찾기 (섭취 날짜 기준)
-		LocalDate intakeDate = intakeAt.toLocalDate();
-		double maxAdjustmentFactor = findMaxAdjustmentFactor(userId, intakeDate);
+
+		// 사용자가 복용 중인 약물 중 가장 높은 보정계수 찾기 (현재 날짜 기준)
+		LocalDate today = LocalDate.now();
+		double maxAdjustmentFactor = findMaxAdjustmentFactor(userId, today);
 		
 		// 30mg 미만이 되기까지 필요한 시간 계산
 		// 30 = initialMg × (0.5)^(t / halfLifeHours)
@@ -307,12 +309,14 @@ public class IntakeService {
 		assumptions.put("hoursPassed", hoursPassed);
 		assumptions.put("initialMg", initialMg);
 		assumptions.put("adjustmentFactor", maxAdjustmentFactor);
-		
+
 		return ResidualTimerResponse.builder()
 			.intakeType("CAFFEINE")
 			.currentAmount(currentMg)
 			.threshold(CAFFEINE_THRESHOLD_MG)
-			.adjustmentFactor(maxAdjustmentFactor)
+			.halfLifeOrRate(halfLifeHours)  // 명시적 필드: 반감기
+			.hoursPassed(hoursPassed)  // 명시적 필드: 경과 시간
+			.adjustmentFactor(maxAdjustmentFactor)  // 명시적 필드: 회피 계수
 			.expectedSafeTime(expectedSafeTime)
 			.remainingSec(remainingSec)
 			.isSafe(isSafe)
@@ -409,10 +413,10 @@ public class IntakeService {
 		if (bacNow > ALCOHOL_THRESHOLD_BAC) {
 			timeToThresholdHours = (bacNow - ALCOHOL_THRESHOLD_BAC) / rate;
 		}
-		
-		// 사용자가 복용 중인 약물 중 가장 높은 보정계수 찾기 (섭취 날짜 기준)
-		LocalDate intakeDate = intakeAt.toLocalDate();
-		double maxAdjustmentFactor = findMaxAdjustmentFactor(userId, intakeDate);
+
+		// 사용자가 복용 중인 약물 중 가장 높은 보정계수 찾기 (현재 날짜 기준)
+		LocalDate today = LocalDate.now();
+		double maxAdjustmentFactor = findMaxAdjustmentFactor(userId, today);
 		
 		// 약물군 보정계수 적용
 		double finalTimeHours = timeToThresholdHours * maxAdjustmentFactor;
@@ -443,12 +447,14 @@ public class IntakeService {
 		assumptions.put("standardDrinks", standardDrinks);
 		assumptions.put("bacPeak", bacPeak);
 		assumptions.put("adjustmentFactor", maxAdjustmentFactor);
-		
+
 		return ResidualTimerResponse.builder()
 			.intakeType("ALCOHOL")
 			.currentAmount(bacNow * 100) // %BAC를 백분율로 변환
 			.threshold(ALCOHOL_THRESHOLD_BAC * 100) // %BAC를 백분율로 변환
-			.adjustmentFactor(maxAdjustmentFactor)
+			.halfLifeOrRate(rate)  // 명시적 필드: 대사 속도 (%BAC/시간)
+			.hoursPassed(hoursPassed)  // 명시적 필드: 경과 시간
+			.adjustmentFactor(maxAdjustmentFactor)  // 명시적 필드: 회피 계수
 			.expectedSafeTime(expectedSafeTime)
 			.remainingSec(remainingSec)
 			.isSafe(isSafe)
@@ -458,14 +464,14 @@ public class IntakeService {
 
 	/**
 	 * 사용자의 복약 일정에서 특정 날짜의 약물에 대한 보정계수 찾기
-	 * 
+	 *
 	 * 로직:
 	 * 1. 특정 날짜의 복약 일정 조회 (SCHEDULED 상태만)
 	 * 2. 일정이 없으면 보정계수 적용 안 함 (기본값 1.0 반환)
 	 * 3. 여러 개의 약물이 있으면 보정계수가 가장 높은 것을 반환
-	 * 
+	 *
 	 * @param userId 사용자 ID
-	 * @param targetDate 조회할 날짜 (섭취 날짜 또는 현재 날짜)
+	 * @param targetDate 조회할 날짜 (현재 날짜 기준 - 활성 타이머 확인 시점의 복약 예정일)
 	 * @return 약물군 보정계수 (없으면 1.0, 여러 개면 최대값)
 	 */
 	private double findMaxAdjustmentFactor(Long userId, LocalDate targetDate) {
