@@ -569,32 +569,36 @@ public class IntakeService {
 	// 5️⃣ 활성 타이머 리스트 조회
 	// ===========================
 	/**
-	 * 사용자의 활성 타이머 리스트 조회 (카페인/알코올 최신 1개씩)
-	 * 
+	 * 사용자의 활성 타이머 리스트 조회 (카페인/알코올 중 가장 긴 타이머 반환)
+	 *
 	 * @param userId 사용자 ID
 	 * @return 활성 타이머 리스트
 	 */
 	public ActiveTimerListResponse getActiveTimers(Long userId) {
 		ActiveTimerListResponse.ActiveTimerItem caffeineTimer = null;
 		ActiveTimerListResponse.ActiveTimerItem alcoholTimer = null;
-		
-		// 카페인 기록 조회: 최신 기록부터 순서대로 확인하여 isSafe=false인 첫 번째 기록 찾기
+		long maxCaffeineRemainingSec = -1;
+		long maxAlcoholRemainingSec = -1;
+
+		// 카페인 기록 조회: 모든 활성 타이머 중 가장 긴 타이머 찾기
 		List<Intake> caffeineIntakes = intakeRepository.findByUserIdAndIntakeTypeOrderByCreatedAtDesc(userId, IntakeType.CAFFEINE);
 		if (!caffeineIntakes.isEmpty()) {
 			for (Intake intake : caffeineIntakes) {
 				try {
-					log.debug("카페인 기록 확인: intakeId={}, beverageName={}, amount={}", 
+					log.debug("카페인 기록 확인: intakeId={}, beverageName={}, amount={}",
 						intake.getIntakeId(), intake.getBeverageName(), intake.getAmount());
-					
+
 					ResidualTimerResponse timer = calculateCaffeineResidualTimer(userId, intake.getIntakeId());
-					log.debug("카페인 타이머 계산 결과: intakeId={}, timer={}, isSafe={}, currentAmount={}, remainingSec={}", 
-						intake.getIntakeId(), timer != null ? "not null" : "null", 
+					log.debug("카페인 타이머 계산 결과: intakeId={}, timer={}, isSafe={}, currentAmount={}, remainingSec={}",
+						intake.getIntakeId(), timer != null ? "not null" : "null",
 						timer != null ? timer.getIsSafe() : "N/A",
 						timer != null ? timer.getCurrentAmount() : "N/A",
 						timer != null ? timer.getRemainingSec() : "N/A");
-					
+
 					// 활성 타이머만 포함 (아직 복약 불가능한 경우, isSafe가 false인 경우)
-					if (timer != null && !timer.getIsSafe()) {
+					// 가장 긴 타이머를 찾기 위해 remainingSec 비교
+					if (timer != null && !timer.getIsSafe() && timer.getRemainingSec() > maxCaffeineRemainingSec) {
+						maxCaffeineRemainingSec = timer.getRemainingSec();
 						caffeineTimer = ActiveTimerListResponse.ActiveTimerItem.builder()
 							.intakeId(intake.getIntakeId())
 							.intakeType("CAFFEINE")
@@ -607,17 +611,16 @@ public class IntakeService {
 							.expectedSafeTime(timer.getExpectedSafeTime())
 							.isSafe(timer.getIsSafe())
 							.build();
-						log.info("카페인 활성 타이머 생성 완료: intakeId={}, isSafe={}, remainingSec={}", 
+						log.info("카페인 활성 타이머 갱신: intakeId={}, isSafe={}, remainingSec={}",
 							intake.getIntakeId(), timer.getIsSafe(), timer.getRemainingSec());
-						break; // isSafe=false인 첫 번째 기록을 찾았으므로 종료
 					} else if (timer != null) {
-						log.info("카페인 타이머는 안전 상태입니다 (제외됨): intakeId={}, isSafe={}", 
+						log.info("카페인 타이머는 안전 상태입니다 (제외됨): intakeId={}, isSafe={}",
 							intake.getIntakeId(), timer.getIsSafe());
 					} else {
 						log.warn("카페인 타이머가 null입니다: intakeId={}", intake.getIntakeId());
 					}
 				} catch (Exception e) {
-					log.error("카페인 타이머 계산 중 오류 발생: userId={}, intakeId={}", 
+					log.error("카페인 타이머 계산 중 오류 발생: userId={}, intakeId={}",
 						userId, intake.getIntakeId(), e);
 					// 오류가 발생해도 다음 기록 계속 확인
 				}
@@ -626,25 +629,27 @@ public class IntakeService {
 			log.debug("카페인 기록이 없습니다: userId={}", userId);
 		}
 		
-		// 알코올 기록 조회: 최신 기록부터 순서대로 확인하여 isSafe=false인 첫 번째 기록 찾기
+		// 알코올 기록 조회: 모든 활성 타이머 중 가장 긴 타이머 찾기
 		List<Intake> alcoholIntakes = intakeRepository.findByUserIdAndIntakeTypeOrderByCreatedAtDesc(userId, IntakeType.ALCOHOL);
 		if (!alcoholIntakes.isEmpty()) {
 			for (Intake intake : alcoholIntakes) {
 				try {
-					log.info("알코올 기록 확인: intakeId={}, beverageName={}, amount={}, abv={}, createdAt={}", 
-						intake.getIntakeId(), intake.getBeverageName(), intake.getAmount(), 
+					log.info("알코올 기록 확인: intakeId={}, beverageName={}, amount={}, abv={}, createdAt={}",
+						intake.getIntakeId(), intake.getBeverageName(), intake.getAmount(),
 						intake.getAbv(), intake.getCreatedAt());
-					
+
 					ResidualTimerResponse timer = calculateAlcoholResidualTimer(userId, intake.getIntakeId());
-					log.info("알코올 타이머 계산 결과: intakeId={}, timer={}, isSafe={}, currentAmount={}, threshold={}, remainingSec={}", 
-						intake.getIntakeId(), timer != null ? "not null" : "null", 
+					log.info("알코올 타이머 계산 결과: intakeId={}, timer={}, isSafe={}, currentAmount={}, threshold={}, remainingSec={}",
+						intake.getIntakeId(), timer != null ? "not null" : "null",
 						timer != null ? timer.getIsSafe() : "N/A",
 						timer != null ? timer.getCurrentAmount() : "N/A",
 						timer != null ? timer.getThreshold() : "N/A",
 						timer != null ? timer.getRemainingSec() : "N/A");
-					
+
 					// 활성 타이머만 포함 (아직 복약 불가능한 경우, isSafe가 false인 경우)
-					if (timer != null && !timer.getIsSafe()) {
+					// 가장 긴 타이머를 찾기 위해 remainingSec 비교
+					if (timer != null && !timer.getIsSafe() && timer.getRemainingSec() > maxAlcoholRemainingSec) {
+						maxAlcoholRemainingSec = timer.getRemainingSec();
 						// beverageName이 null인 경우 기본값 제공
 						String beverageName = intake.getBeverageName() != null ? intake.getBeverageName() : "알코올";
 
@@ -660,17 +665,16 @@ public class IntakeService {
 							.expectedSafeTime(timer.getExpectedSafeTime())
 							.isSafe(timer.getIsSafe())
 							.build();
-						log.info("알코올 활성 타이머 생성 완료: intakeId={}, isSafe={}, remainingSec={}", 
+						log.info("알코올 활성 타이머 갱신: intakeId={}, isSafe={}, remainingSec={}",
 							intake.getIntakeId(), timer.getIsSafe(), timer.getRemainingSec());
-						break; // isSafe=false인 첫 번째 기록을 찾았으므로 종료
 					} else if (timer != null) {
-						log.info("알코올 타이머는 안전 상태입니다 (제외됨): intakeId={}, isSafe={}", 
+						log.info("알코올 타이머는 안전 상태입니다 (제외됨): intakeId={}, isSafe={}",
 							intake.getIntakeId(), timer.getIsSafe());
 					} else {
 						log.warn("알코올 타이머가 null입니다: intakeId={}", intake.getIntakeId());
 					}
 				} catch (Exception e) {
-					log.error("알코올 타이머 계산 중 오류 발생: userId={}, intakeId={}", 
+					log.error("알코올 타이머 계산 중 오류 발생: userId={}, intakeId={}",
 						userId, intake.getIntakeId(), e);
 					// 오류가 발생해도 다음 기록 계속 확인
 				}

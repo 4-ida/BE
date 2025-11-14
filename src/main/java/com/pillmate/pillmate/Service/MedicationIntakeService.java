@@ -207,58 +207,64 @@ public class MedicationIntakeService {
     /**
      * 카페인 금지 타이머 조회
      * 특정 일정(scheduleId)에 대한 카페인 금지 타이머를 조회
+     * scheduleId가 null이면 오늘 복용한 모든 약들 중 가장 긴 타이머 반환
      * 해당 일정의 복용 기록을 기반으로 남은 금지 시간을 계산
      */
     public BanTimerResponse getCaffeineBanTimer(Long userId, Long scheduleId) {
+        // scheduleId가 null이면 오늘 복용한 모든 약들 중 가장 긴 타이머 반환
+        if (scheduleId == null) {
+            return getLongestCaffeineBanTimer(userId);
+        }
+
         // 일정 조회 및 사용자 확인
         Schedule schedule = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 일정입니다"));
-        
+
         // 사용자 확인
         if (!schedule.getUserId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "본인의 일정만 조회할 수 있습니다");
         }
-        
+
         // 일정이 TAKEN 상태가 아니면 null 반환
         if (!schedule.getStatus().equals(ScheduleStatus.TAKEN)) {
             return null;
         }
-        
+
         // 해당 일정의 복용 기록 조회
         List<MedicationIntake> intakes = medicationIntakeRepository.findByScheduleId(scheduleId);
         if (intakes.isEmpty()) {
             // 복용 기록이 없으면 null 반환 (204 No Content)
             return null;
         }
-        
+
         // 가장 최근 복용 기록 찾기
         MedicationIntake latestIntake = intakes.stream()
                 .max((a, b) -> a.getTakenAt().compareTo(b.getTakenAt()))
                 .orElse(null);
-        
+
         if (latestIntake == null) {
             return null;
         }
-        
+
         LocalDateTime takenAt = latestIntake.getTakenAt();
 
         // 현재 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 조회
         LocalDate today = LocalDate.now();
         double adjustmentFactor = findMaxAdjustmentFactor(schedule.getUserId(), today);
-        
+
         // 기본 금지 시간(6시간) × 보정 계수
         long totalBanSeconds = (long) (CAFFEINE_BASE_BAN_HOURS * 3600 * adjustmentFactor);
         LocalDateTime expectedSafeTime = takenAt.plusSeconds(totalBanSeconds);
-        
+
         // 현재 시간 기준 남은 시간 계산
         LocalDateTime now = LocalDateTime.now();
         long remainingSeconds = Duration.between(now, expectedSafeTime).getSeconds();
-        
+
         // 이미 금지 시간이 지났으면 0으로 설정
         if (remainingSeconds < 0) {
             remainingSeconds = 0;
         }
-        
+
         return BanTimerResponse.builder()
                 .type("caffeine")
                 .adjustmentFactor(adjustmentFactor)
@@ -270,58 +276,64 @@ public class MedicationIntakeService {
     /**
      * 알코올 금지 타이머 조회
      * 특정 일정(scheduleId)에 대한 알코올 금지 타이머를 조회
+     * scheduleId가 null이면 오늘 복용한 모든 약들 중 가장 긴 타이머 반환
      * 해당 일정의 복용 기록을 기반으로 남은 금지 시간을 계산
      */
     public BanTimerResponse getAlcoholBanTimer(Long userId, Long scheduleId) {
+        // scheduleId가 null이면 오늘 복용한 모든 약들 중 가장 긴 타이머 반환
+        if (scheduleId == null) {
+            return getLongestAlcoholBanTimer(userId);
+        }
+
         // 일정 조회 및 사용자 확인
         Schedule schedule = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 일정입니다"));
-        
+
         // 사용자 확인
         if (!schedule.getUserId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "본인의 일정만 조회할 수 있습니다");
         }
-        
+
         // 일정이 TAKEN 상태가 아니면 null 반환
         if (!schedule.getStatus().equals(ScheduleStatus.TAKEN)) {
             return null;
         }
-        
+
         // 해당 일정의 복용 기록 조회
         List<MedicationIntake> intakes = medicationIntakeRepository.findByScheduleId(scheduleId);
         if (intakes.isEmpty()) {
             // 복용 기록이 없으면 null 반환 (204 No Content)
             return null;
         }
-        
+
         // 가장 최근 복용 기록 찾기
         MedicationIntake latestIntake = intakes.stream()
                 .max((a, b) -> a.getTakenAt().compareTo(b.getTakenAt()))
                 .orElse(null);
-        
+
         if (latestIntake == null) {
             return null;
         }
-        
+
         LocalDateTime takenAt = latestIntake.getTakenAt();
 
         // 현재 날짜의 모든 SCHEDULED 일정 중 가장 높은 회피계수 조회
         LocalDate today = LocalDate.now();
         double adjustmentFactor = findMaxAdjustmentFactor(schedule.getUserId(), today);
-        
+
         // 기본 금지 시간(7시간) × 보정 계수
         long totalBanSeconds = (long) (ALCOHOL_BASE_BAN_HOURS * 3600 * adjustmentFactor);
         LocalDateTime expectedSafeTime = takenAt.plusSeconds(totalBanSeconds);
-        
+
         // 현재 시간 기준 남은 시간 계산
         LocalDateTime now = LocalDateTime.now();
         long remainingSeconds = Duration.between(now, expectedSafeTime).getSeconds();
-        
+
         // 이미 금지 시간이 지났으면 0으로 설정
         if (remainingSeconds < 0) {
             remainingSeconds = 0;
         }
-        
+
         return BanTimerResponse.builder()
                 .type("alcohol")
                 .adjustmentFactor(adjustmentFactor)
@@ -377,5 +389,171 @@ public class MedicationIntakeService {
         
         log.debug("최종 보정계수: {}", maxFactor);
         return maxFactor;
+    }
+
+    /**
+     * 오늘 복용한 모든 약들 중 가장 긴 카페인 금지 타이머 조회
+     * TAKEN 상태의 모든 일정을 확인하고, 각각의 타이머를 계산한 후 가장 긴 것을 반환
+     *
+     * @param userId 사용자 ID
+     * @return 가장 긴 카페인 금지 타이머 (없으면 null)
+     */
+    private BanTimerResponse getLongestCaffeineBanTimer(Long userId) {
+        // 오늘 날짜 범위 계산
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime startOfNextDay = today.plusDays(1).atStartOfDay();
+
+        // 오늘 날짜의 모든 일정 조회
+        List<Schedule> allSchedules = scheduleRepository.findByUserIdAndDate(userId, startOfDay, startOfNextDay);
+
+        // TAKEN 상태인 일정만 필터링
+        List<Schedule> takenSchedules = allSchedules.stream()
+                .filter(s -> s.getStatus() == ScheduleStatus.TAKEN)
+                .collect(Collectors.toList());
+
+        log.debug("오늘 복용한 약 개수: {}", takenSchedules.size());
+
+        if (takenSchedules.isEmpty()) {
+            // 복용한 약이 없으면 null 반환
+            return null;
+        }
+
+        BanTimerResponse longestTimer = null;
+        long maxRemainingSeconds = -1;
+
+        // 각 TAKEN 일정에 대해 타이머 계산
+        for (Schedule schedule : takenSchedules) {
+            // 해당 일정의 복용 기록 조회
+            List<MedicationIntake> intakes = medicationIntakeRepository.findByScheduleId(schedule.getScheduleId());
+            if (intakes.isEmpty()) {
+                continue;
+            }
+
+            // 가장 최근 복용 기록 찾기
+            MedicationIntake latestIntake = intakes.stream()
+                    .max((a, b) -> a.getTakenAt().compareTo(b.getTakenAt()))
+                    .orElse(null);
+
+            if (latestIntake == null) {
+                continue;
+            }
+
+            LocalDateTime takenAt = latestIntake.getTakenAt();
+
+            // 보정계수 조회
+            double adjustmentFactor = findMaxAdjustmentFactor(userId, today);
+
+            // 카페인 금지 시간 계산
+            long totalBanSeconds = (long) (CAFFEINE_BASE_BAN_HOURS * 3600 * adjustmentFactor);
+            LocalDateTime expectedSafeTime = takenAt.plusSeconds(totalBanSeconds);
+
+            // 현재 시간 기준 남은 시간 계산
+            LocalDateTime now = LocalDateTime.now();
+            long remainingSeconds = Duration.between(now, expectedSafeTime).getSeconds();
+
+            // 이미 금지 시간이 지났으면 0으로 설정
+            if (remainingSeconds < 0) {
+                remainingSeconds = 0;
+            }
+
+            log.debug("scheduleId: {}, remainingSeconds: {}", schedule.getScheduleId(), remainingSeconds);
+
+            // 가장 긴 타이머 찾기
+            if (remainingSeconds > maxRemainingSeconds) {
+                maxRemainingSeconds = remainingSeconds;
+                longestTimer = BanTimerResponse.builder()
+                        .type("caffeine")
+                        .adjustmentFactor(adjustmentFactor)
+                        .remainingSec(remainingSeconds)
+                        .expectedSafeTime(expectedSafeTime)
+                        .build();
+            }
+        }
+
+        return longestTimer;
+    }
+
+    /**
+     * 오늘 복용한 모든 약들 중 가장 긴 알코올 금지 타이머 조회
+     * TAKEN 상태의 모든 일정을 확인하고, 각각의 타이머를 계산한 후 가장 긴 것을 반환
+     *
+     * @param userId 사용자 ID
+     * @return 가장 긴 알코올 금지 타이머 (없으면 null)
+     */
+    private BanTimerResponse getLongestAlcoholBanTimer(Long userId) {
+        // 오늘 날짜 범위 계산
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime startOfNextDay = today.plusDays(1).atStartOfDay();
+
+        // 오늘 날짜의 모든 일정 조회
+        List<Schedule> allSchedules = scheduleRepository.findByUserIdAndDate(userId, startOfDay, startOfNextDay);
+
+        // TAKEN 상태인 일정만 필터링
+        List<Schedule> takenSchedules = allSchedules.stream()
+                .filter(s -> s.getStatus() == ScheduleStatus.TAKEN)
+                .collect(Collectors.toList());
+
+        log.debug("오늘 복용한 약 개수: {}", takenSchedules.size());
+
+        if (takenSchedules.isEmpty()) {
+            // 복용한 약이 없으면 null 반환
+            return null;
+        }
+
+        BanTimerResponse longestTimer = null;
+        long maxRemainingSeconds = -1;
+
+        // 각 TAKEN 일정에 대해 타이머 계산
+        for (Schedule schedule : takenSchedules) {
+            // 해당 일정의 복용 기록 조회
+            List<MedicationIntake> intakes = medicationIntakeRepository.findByScheduleId(schedule.getScheduleId());
+            if (intakes.isEmpty()) {
+                continue;
+            }
+
+            // 가장 최근 복용 기록 찾기
+            MedicationIntake latestIntake = intakes.stream()
+                    .max((a, b) -> a.getTakenAt().compareTo(b.getTakenAt()))
+                    .orElse(null);
+
+            if (latestIntake == null) {
+                continue;
+            }
+
+            LocalDateTime takenAt = latestIntake.getTakenAt();
+
+            // 보정계수 조회
+            double adjustmentFactor = findMaxAdjustmentFactor(userId, today);
+
+            // 알코올 금지 시간 계산
+            long totalBanSeconds = (long) (ALCOHOL_BASE_BAN_HOURS * 3600 * adjustmentFactor);
+            LocalDateTime expectedSafeTime = takenAt.plusSeconds(totalBanSeconds);
+
+            // 현재 시간 기준 남은 시간 계산
+            LocalDateTime now = LocalDateTime.now();
+            long remainingSeconds = Duration.between(now, expectedSafeTime).getSeconds();
+
+            // 이미 금지 시간이 지났으면 0으로 설정
+            if (remainingSeconds < 0) {
+                remainingSeconds = 0;
+            }
+
+            log.debug("scheduleId: {}, remainingSeconds: {}", schedule.getScheduleId(), remainingSeconds);
+
+            // 가장 긴 타이머 찾기
+            if (remainingSeconds > maxRemainingSeconds) {
+                maxRemainingSeconds = remainingSeconds;
+                longestTimer = BanTimerResponse.builder()
+                        .type("alcohol")
+                        .adjustmentFactor(adjustmentFactor)
+                        .remainingSec(remainingSeconds)
+                        .expectedSafeTime(expectedSafeTime)
+                        .build();
+            }
+        }
+
+        return longestTimer;
     }
 }

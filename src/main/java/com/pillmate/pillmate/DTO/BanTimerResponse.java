@@ -23,36 +23,16 @@ public class BanTimerResponse {
     private String type;
 
     @Schema(
-        description = "약물군 보정 계수 (기본 시간에 곱해짐)",
+        description = "약물군 보정 계수 (기본 시간에 곱해짐). 예: 항생제 ×2.0, 수면제/진정제 ×1.5",
         example = "2.0",
         implementation = Double.class
-    )
-    @io.swagger.v3.oas.annotations.media.ExampleObject(
-        name = "항생제",
-        value = "2.0",
-        description = "항생제 복용 시 ×2.0"
-    )
-    @io.swagger.v3.oas.annotations.media.ExampleObject(
-        name = "수면제",
-        value = "1.5",
-        description = "수면제/진정제 복용 시 ×1.5"
     )
     private Double adjustmentFactor;
 
     @Schema(
-        description = "남은 금지 시간 (초 단위)",
+        description = "남은 금지 시간 (초 단위). 예: 카페인(항생제) 43200초(12시간), 알코올(수면제) 37800초(10.5시간)",
         example = "43200",
         implementation = Long.class
-    )
-    @io.swagger.v3.oas.annotations.media.ExampleObject(
-        name = "카페인 (항생제)",
-        value = "43200",
-        description = "6시간 × 2.0 = 12시간 = 43200초"
-    )
-    @io.swagger.v3.oas.annotations.media.ExampleObject(
-        name = "알코올 (수면제)",
-        value = "37800",
-        description = "7시간 × 1.5 = 10.5시간 = 37800초"
     )
     private Long remainingSec;
 

@@ -29,6 +29,10 @@ public class MedicationIntakeController {
             - TAKEN 상태인 일정만 조회 가능
             - 현재 날짜의 SCHEDULED 약물 중 가장 높은 보정계수 적용
 
+            **파라미터:**
+            - scheduleId (optional): 특정 일정의 타이머 조회
+            - scheduleId가 없으면 오늘 복용한(TAKEN) 모든 약들 중 가장 긴 타이머 반환
+
             **응답 예시 (type: "caffeine"):**
             - adjustmentFactor: 2.0 (항생제 복용 시)
             - remainingSec: 43200 (6시간 × 2.0 = 12시간 = 43200초)
@@ -43,7 +47,8 @@ public class MedicationIntakeController {
         @ApiResponse(responseCode = "204", description = "TAKEN 상태의 복용 기록이 없음")
     })
     @GetMapping("/timer/caffeine")
-    public ResponseEntity<BanTimerResponse> getCaffeineBanTimer(@RequestParam Long scheduleId) {
+    public ResponseEntity<BanTimerResponse> getCaffeineBanTimer(
+            @RequestParam(required = false) Long scheduleId) {
         Long userId = SecurityUtil.currentUserId();
         BanTimerResponse timer = medicationIntakeService.getCaffeineBanTimer(userId, scheduleId);
 
@@ -64,6 +69,10 @@ public class MedicationIntakeController {
             - TAKEN 상태인 일정만 조회 가능
             - 현재 날짜의 SCHEDULED 약물 중 가장 높은 보정계수 적용
 
+            **파라미터:**
+            - scheduleId (optional): 특정 일정의 타이머 조회
+            - scheduleId가 없으면 오늘 복용한(TAKEN) 모든 약들 중 가장 긴 타이머 반환
+
             **응답 예시 (type: "alcohol"):**
             - adjustmentFactor: 1.5 (수면제 복용 시)
             - remainingSec: 37800 (7시간 × 1.5 = 10.5시간 = 37800초)
@@ -78,7 +87,8 @@ public class MedicationIntakeController {
         @ApiResponse(responseCode = "204", description = "TAKEN 상태의 복용 기록이 없음")
     })
     @GetMapping("/timer/alcohol")
-    public ResponseEntity<BanTimerResponse> getAlcoholBanTimer(@RequestParam Long scheduleId) {
+    public ResponseEntity<BanTimerResponse> getAlcoholBanTimer(
+            @RequestParam(required = false) Long scheduleId) {
         Long userId = SecurityUtil.currentUserId();
         BanTimerResponse timer = medicationIntakeService.getAlcoholBanTimer(userId, scheduleId);
 

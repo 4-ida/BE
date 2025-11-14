@@ -8,16 +8,19 @@ group = 'com.likelion'
 version = '0.0.1-SNAPSHOT'
 description = 'Demo project for Spring Boot'
 
-java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
-	}
-}
+// Use Java 17 or higher (compatible with Java 23)
+sourceCompatibility = '17'
+targetCompatibility = '17'
 
 configurations {
 	compileOnly {
 		extendsFrom annotationProcessor
 	}
+}
+
+// Ensure annotation processing is enabled
+tasks.withType(JavaCompile).configureEach {
+	options.compilerArgs += ['-parameters']
 }
 
 repositories {
