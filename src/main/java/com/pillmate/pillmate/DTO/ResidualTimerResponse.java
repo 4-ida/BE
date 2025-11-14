@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @Schema(description = "잔존 타이머 정보 (카페인/알코올 섭취 후 약 복용 가능 시간)")
 public class ResidualTimerResponse {
 
-    @Schema(description = "섭취 타입", example = "CAFFEINE", allowableValues = {"CAFFEINE", "ALCOHOL"})
+    @Schema(description = "섭취 타입 (카페인 또는 알코올)", allowableValues = {"CAFFEINE", "ALCOHOL"})
     private String intakeType;
 
     @Schema(description = "현재 잔존량 (카페인: mg, 알코올: %BAC)", example = "45.5")
