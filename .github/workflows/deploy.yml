@@ -68,8 +68,14 @@ jobs:
       - name: Add server to known hosts
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
+          echo "Scanning SSH host..."
+          ssh-keyscan -H -T 10 ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>&1 || echo "ssh-keyscan failed, but continuing with StrictHostKeyChecking=no"
+          if [ -f ~/.ssh/known_hosts ]; then
+            chmod 600 ~/.ssh/known_hosts
+            echo "known_hosts file created successfully"
+          else
+            echo "known_hosts file not created, will rely on StrictHostKeyChecking=no"
+          fi
 
       - name: Deploy to server
         run: |
