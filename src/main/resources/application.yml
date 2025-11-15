@@ -1,6 +1,7 @@
 # 배포용
 
 server:
+  forward-headers-strategy: framework
   port: 8080
 
 spring:
