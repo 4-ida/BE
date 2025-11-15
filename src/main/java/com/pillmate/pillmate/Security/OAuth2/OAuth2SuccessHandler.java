@@ -64,17 +64,18 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         String redirectUri = request.getParameter("redirect_uri");
         if (!StringUtils.hasText(redirectUri)) {
             // 환경 변수에서 프론트엔드 URL 가져오기
-            redirectUri = environment.getProperty("FRONTEND_URL", "https://pillmate-three.vercel.app");
+            redirectUri = environment.getProperty("FRONTEND_URL", "https://pill-eight.vercel.app");
         }
-        
+
         // 허용된 프론트엔드 URL 목록
         String[] allowedFrontendUrls = {
+            "https://pill-eight.vercel.app",
             "https://pillmate-three.vercel.app",
             "https://pillmate.lion.it.kr",
             "http://localhost:3000",
             "http://localhost:5173"
         };
-        
+
         // redirectUri가 허용된 URL인지 확인
         boolean isAllowed = false;
         for (String allowedUrl : allowedFrontendUrls) {
@@ -83,11 +84,11 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
                 break;
             }
         }
-        
+
         if (!isAllowed) {
             // 허용되지 않은 URL인 경우 기본값 사용
-            log.warn("허용되지 않은 프론트엔드 URL: {}. 기본값 사용: https://pillmate-three.vercel.app", redirectUri);
-            redirectUri = "https://pillmate-three.vercel.app";
+            log.warn("허용되지 않은 프론트엔드 URL: {}. 기본값 사용: https://pill-eight.vercel.app", redirectUri);
+            redirectUri = "https://pill-eight.vercel.app";
         }
         
         // JSON 응답을 URL 인코딩하여 쿼리 파라미터로 전달

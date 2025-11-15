@@ -110,14 +110,15 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         // 개발 및 프로덕션 환경 Origin 허용
         configuration.setAllowedOrigins(List.of(
-            "http://localhost:3000", 
+            "http://localhost:3000",
             "http://localhost:5173",  // Vite 개발 서버
-            "http://localhost:8080", 
-            "http://127.0.0.1:8080", 
+            "http://localhost:8080",
+            "http://127.0.0.1:8080",
             "http://127.0.0.1:3000",
             "http://127.0.0.1:5173",  // Vite 개발 서버
             "https://pillmate.lion.it.kr", // 프로덕션 도메인
-            "https://pillmate-three.vercel.app" // Vercel 배포 도메인
+            "https://pillmate-three.vercel.app", // Vercel 배포 도메인 (구)
+            "https://pill-eight.vercel.app" // Vercel 배포 도메인 (신)
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
